@@ -1,0 +1,23 @@
+name: build pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    name: external workflow
+    uses: tehw0lf/workflows/.github/workflows/build-test-publish.yml@main
+    permissions:
+      actions: write
+      contents: write
+      packages: write
+    with:
+      docker_meta: |
+        [
+         {'name': 'yaft', 'file':'Dockerfile'},
+         {'name': 'yaft-db', 'file':'db/Dockerfile'},
+        ]
+      event_name: ${{ github.event_name }}
