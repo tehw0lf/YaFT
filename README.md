@@ -1,9 +1,17 @@
 # YaFT - Yet another Feature Toggle
 
+<div align="center">
+  <img src="./logo.svg" alt="YaFT Logo" width="140">
+</div>
+
+---
+
 Provides a simple feature toggle API that supports strings as keys and stringified booleans (`"true"` or `"false"`) as values.
 Features can be given an optional start and end date.
 Features are grouped by prepending UUIDs. This is done automatically on creating the first feature in a group. To add more features to the group, prepend the new feature's key with a UUIDv4 followed by a pipe symbol `|` (see examples)
 All endpoints apart from the `GET` endpoint require a secret. This is created when creating a new feature toggle without a UUIDv4 and returned from the `POST` request. The secret is only returned upon creating the _first_ feature toggle in a group.
+
+---
 
 # Usage:
 ## Prod usage (EARLY ALPHA)
@@ -164,3 +172,8 @@ error response if secret is invalid or UUID does not exist:
 
 error response if new secret is not URL parseable:
 `{"error": "New secret is not URL parseable, aborting operation"}`
+
+# Licenses
+
+- Code: MIT License
+- Logo/Branding: All rights reserved
