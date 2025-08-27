@@ -15,9 +15,5 @@ jobs:
       contents: write
       packages: write
     with:
-      docker_meta: |
-        [
-         {'name': 'yaft', 'file':'Dockerfile'},
-         {'name': 'yaft-db', 'file':'db/Dockerfile'},
-        ]
+      docker_meta: '[{"name": "yaft", "file": "Dockerfile"},{"name": "yaft-db", "file": "db/Dockerfile"}]'
       event_name: ${{ github.event_name }}
