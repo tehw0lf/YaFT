@@ -33,6 +33,33 @@ type FeatureToggleDTO struct {
 var db *gorm.DB
 var logger = logrus.New()
 
+func initDatabase(dsn string) (*gorm.DB, error) {
+	var database *gorm.DB
+	var err error
+
+	// Wait for PostgreSQL to be available
+	for i := 0; i < 10; i++ {
+		database, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			break
+		}
+		logger.Warn("Failed to connect database:", err)
+		time.Sleep(5 * time.Second)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Auto-migrate the schema
+	err = database.AutoMigrate(&FeatureToggle{})
+	if err != nil {
+		return nil, err
+	}
+
+	return database, nil
+}
+
 func prependUUID(key string) string {
 	newUUID := uuid.New().String()
 	for db.Where("key LIKE ?", newUUID+"%").Error != nil {
@@ -65,30 +92,29 @@ func secretsMatch(key string, secret string) bool {
 }
 
 func init() {
-	dsn := os.Getenv("DB_DSN")
-	var err error
-
-	// Wait for PostgreSQL to be available
-	for i := 0; i < 10; i++ {
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err == nil {
-			break
-		}
-		logger.Warn("Failed to connect database:", err)
-		time.Sleep(5 * time.Second)
-	}
-
-	if err != nil {
-		logger.Fatal("failed to connect database after multiple attempts:", err)
-	}
-
 	// Configure logger
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetOutput(os.Stdout)
 	logger.SetLevel(logrus.DebugLevel)
 }
 
+func setupDatabase() {
+	dsn := os.Getenv("DB_DSN")
+	if dsn == "" {
+		logger.Fatal("DB_DSN environment variable is required")
+	}
+
+	var err error
+	db, err = initDatabase(dsn)
+	if err != nil {
+		logger.Fatal("failed to connect database after multiple attempts:", err)
+	}
+}
+
 func main() {
+	// Setup database connection
+	setupDatabase()
+	
 	router := gin.Default()
 
 	router.GET("/collectionHash/:key", func(c *gin.Context) {
