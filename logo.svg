@@ -23,5 +23,5 @@
     <!-- cross -->
     <path d="M5,20 L20,5" stroke="red" stroke-width="4" fill="none" />
     <!-- check -->
-    <path d="M40.8,20.8, L30.8,10.8" stroke="green" stroke-width="4" fill="none" />
+    <path d="M40.8,20.8 L30.8,10.8" stroke="green" stroke-width="4" fill="none" />
 </svg>
