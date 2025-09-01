@@ -9,18 +9,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 type FeatureToggle struct {
-	ID         uint       `gorm:"primaryKey"`
-	Key        string     `gorm:"unique;not null"`
-	Value      string     `gorm:"not null"`
-	ActiveAt   *time.Time `gorm:"null"`
-	DisabledAt *time.Time `gorm:"null"`
-	Secret     string     `gorm:"null"`
+	ID         uint           `gorm:"primaryKey"`
+	Key        string         `gorm:"unique;not null"`
+	Value      string         `gorm:"not null"`
+	ActiveAt   *time.Time     `gorm:"null"`
+	DisabledAt *time.Time     `gorm:"null"`
+	Secret     string         `gorm:"null"`
+	Tags       pq.StringArray `gorm:"type:text[]"`
 }
 
 type FeatureToggleDTO struct {
@@ -28,6 +30,7 @@ type FeatureToggleDTO struct {
 	Value      string
 	ActiveAt   *time.Time
 	DisabledAt *time.Time
+	Tags       pq.StringArray
 }
 
 var db *gorm.DB
@@ -117,6 +120,22 @@ func main() {
 	
 	router := gin.Default()
 
+	// Add CORS middleware
+	router.Use(func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
 	router.GET("/collectionHash/:key", func(c *gin.Context) {
 		key := c.Param("key")
 		logger.WithFields(logrus.Fields{
@@ -135,7 +154,7 @@ func main() {
 			var collectionHash string
 			if err := db.Raw(`
 					SELECT encode(digest(string_agg(
-                        key || ' ' || value || ' ' || COALESCE(active_at::text, '') || ' ' || COALESCE(disabled_at::text, ''),
+                        key || ' ' || value || ' ' || COALESCE(active_at::text, '') || ' ' || COALESCE(disabled_at::text, '') || ' ' || COALESCE(array_to_string(tags, ','), ''),
                         ' ' ORDER BY key), 'sha256'::text), 'hex')
 					FROM feature_toggles WHERE key LIKE ?;
 				`, key+"%").Scan(&collectionHash).Error; err != nil {
@@ -179,8 +198,21 @@ func main() {
 				return
 			}
 			var toggles []FeatureToggle
+			
+			// Check for tag filtering
+			tagFilter := c.Query("tags")
+			query := db.Where("key LIKE ?", key+"%")
+			if tagFilter != "" {
+				tags := strings.Split(tagFilter, ",")
+				for _, tag := range tags {
+					tag = strings.TrimSpace(tag)
+					if tag != "" {
+						query = query.Where("? = ANY(tags)", tag)
+					}
+				}
+			}
 
-			if err := db.Where("key LIKE ?", key+"%").Find(&toggles).Error; err != nil {
+			if err := query.Find(&toggles).Error; err != nil {
 				logger.WithFields(logrus.Fields{
 					"method": "GET",
 					"path":   "/features/" + key,
@@ -209,6 +241,7 @@ func main() {
 						Value:      obj.Value,
 						ActiveAt:   obj.ActiveAt,
 						DisabledAt: obj.DisabledAt,
+						Tags:       obj.Tags,
 					}
 					strippedToggles = append(strippedToggles, newObj)
 				}
@@ -231,6 +264,7 @@ func main() {
 				"value":      toggle.Value,
 				"activeAt":   toggle.ActiveAt,
 				"disabledAt": toggle.DisabledAt,
+				"tags":       toggle.Tags,
 			})
 		}
 	})
@@ -294,6 +328,7 @@ func main() {
 				"value":      newToggle.Value,
 				"activeAt":   newToggle.ActiveAt,
 				"disabledAt": newToggle.DisabledAt,
+				"tags":       newToggle.Tags,
 				"secret":     secret,
 			})
 		} else {
@@ -302,6 +337,7 @@ func main() {
 				"value":      newToggle.Value,
 				"activeAt":   newToggle.ActiveAt,
 				"disabledAt": newToggle.DisabledAt,
+				"tags":       newToggle.Tags,
 			})
 		}
 	})
@@ -367,6 +403,7 @@ func main() {
 			"value":      toggle.Value,
 			"activeAt":   toggle.ActiveAt,
 			"disabledAt": toggle.DisabledAt,
+			"tags":       toggle.Tags,
 		})
 	})
 
@@ -432,6 +469,7 @@ func main() {
 			"value":      toggle.Value,
 			"activeAt":   toggle.ActiveAt,
 			"disabledAt": toggle.DisabledAt,
+			"tags":       toggle.Tags,
 		})
 	})
 
@@ -496,6 +534,7 @@ func main() {
 			"value":      toggle.Value,
 			"activeAt":   toggle.ActiveAt,
 			"disabledAt": toggle.DisabledAt,
+			"tags":       toggle.Tags,
 		})
 	})
 
@@ -561,6 +600,7 @@ func main() {
 			"value":      toggle.Value,
 			"activeAt":   toggle.ActiveAt,
 			"disabledAt": toggle.DisabledAt,
+			"tags":       toggle.Tags,
 		})
 	})
 
