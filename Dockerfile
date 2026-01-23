@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Build the application from source
-FROM golang:1.24.1 AS build-stage
+FROM golang:1.25.6 AS build-stage
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ FROM build-stage AS run-test-stage
 RUN go mod tidy && go vet ./... && go test -race -cover ./...
 
 # Deploy the application binary into a lean image
-FROM gcr.io/distroless/base-debian11 AS build-release-stage
+FROM gcr.io/distroless/base-debian13 AS build-release-stage
 
 WORKDIR /
 
