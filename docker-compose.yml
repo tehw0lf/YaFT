@@ -12,6 +12,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    read_only: true
     security_opt:
       - no-new-privileges:true
     tmpfs:
