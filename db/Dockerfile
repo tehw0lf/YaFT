@@ -1,20 +1,30 @@
-# Build gosu with latest Go version to fix CVE-2025-58183 and CVE-2025-61729
-FROM golang:1.25.6 AS gosu-builder
-RUN git clone https://github.com/tianon/gosu.git /gosu && \
-    cd /gosu && \
-    git checkout e845c46b6bedb4457cda8c88814c30a53cc6c9e7 && \
-    go mod download && \
-    CGO_ENABLED=0 go build -v -ldflags '-d -s -w' -o /usr/local/bin/gosu
+# PostgreSQL Alpine base image
+FROM postgres:18-alpine3.21 AS builder
 
-# PostgreSQL base image with security updates
-FROM postgres:18-trixie
-RUN apt-get update && \
-  apt-get -y upgrade && \
-  apt-get -y install postgresql-18-cron && \
-  apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+# Install build dependencies for pg_cron
+RUN apk --no-cache add \
+    postgresql-dev \
+    build-base \
+    clang \
+    llvm \
+    git \
+    make
 
-# Replace gosu binary with version built using Go 1.25.6
-COPY --from=gosu-builder /usr/local/bin/gosu /usr/local/bin/gosu
-RUN chmod +x /usr/local/bin/gosu && \
-    gosu --version
+# Build pg_cron extension
+WORKDIR /tmp
+RUN git clone https://github.com/citusdata/pg_cron.git && \
+    cd pg_cron && \
+    make && \
+    make install
+
+# Final PostgreSQL Alpine image with pg_cron
+FROM postgres:18-alpine3.21
+
+# Copy pg_cron extension from builder
+COPY --from=builder /usr/local/lib/postgresql/pg_cron.so /usr/local/lib/postgresql/
+COPY --from=builder /usr/local/share/postgresql/extension/pg_cron--*.sql /usr/local/share/postgresql/extension/
+COPY --from=builder /usr/local/share/postgresql/extension/pg_cron.control /usr/local/share/postgresql/extension/
+
+# Update shared_preload_libraries in default postgresql.conf
+RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample && \
+    echo "cron.database_name = '${POSTGRES_DB:-postgres}'" >> /usr/local/share/postgresql/postgresql.conf.sample
