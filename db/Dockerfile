@@ -1,5 +1,5 @@
 # PostgreSQL Alpine base image
-FROM postgres:18-alpine3.21 AS builder
+FROM postgres:18-alpine3.22 AS builder
 
 # Install build dependencies for pg_cron
 RUN apk --no-cache add \
@@ -18,7 +18,7 @@ RUN git clone https://github.com/citusdata/pg_cron.git && \
     make install
 
 # Final PostgreSQL Alpine image with pg_cron
-FROM postgres:18-alpine3.21
+FROM postgres:18-alpine3.22
 
 # Copy pg_cron extension from builder
 COPY --from=builder /usr/local/lib/postgresql/pg_cron.so /usr/local/lib/postgresql/
