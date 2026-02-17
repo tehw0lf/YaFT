@@ -5,8 +5,8 @@ FROM postgres:18-alpine3.22 AS builder
 RUN apk --no-cache add \
     postgresql-dev \
     build-base \
-    clang \
-    llvm \
+    clang19 \
+    llvm19-dev \
     git \
     make
 
