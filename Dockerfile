@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Build the application from source
-FROM golang:1.25.7-alpine AS build-stage
+FROM golang:1.25.9-alpine AS build-stage
 
 WORKDIR /app
 
@@ -19,8 +19,8 @@ RUN go mod tidy && go vet ./... && go test -race -cover ./...
 # Deploy the application binary into a lean Alpine image
 FROM alpine:3.22 AS build-release-stage
 
-# Install ca-certificates for HTTPS connections
-RUN apk --no-cache add ca-certificates
+# Upgrade all packages to get latest security patches, then install ca-certificates
+RUN apk --no-cache upgrade && apk --no-cache add ca-certificates
 
 WORKDIR /
 
