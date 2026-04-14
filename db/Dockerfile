@@ -1,5 +1,5 @@
 # Build gosu with latest Go to avoid CVEs in bundled gosu binary
-FROM golang:1.25.7-alpine3.22 AS gosu-builder
+FROM golang:1.25.9-alpine3.22 AS gosu-builder
 RUN apk --no-cache add git && \
     git clone --depth=1 https://github.com/tianon/gosu.git /gosu && \
     cd /gosu && \
@@ -27,6 +27,9 @@ RUN git clone https://github.com/citusdata/pg_cron.git && \
 
 # Final PostgreSQL Alpine image with pg_cron
 FROM postgres:18-alpine3.22
+
+# Upgrade all packages to get latest security patches (fixes OpenSSL/musl CVEs)
+RUN apk --no-cache upgrade
 
 # Replace bundled gosu with version built on latest Go (fixes stdlib CVEs)
 COPY --from=gosu-builder /usr/local/bin/gosu /usr/local/bin/gosu
