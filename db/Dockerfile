@@ -1,5 +1,5 @@
 # Build gosu with latest Go to avoid CVEs in bundled gosu binary
-FROM golang:1.25.10-alpine3.22 AS gosu-builder
+FROM golang:1.25.11-alpine3.22 AS gosu-builder
 RUN apk --no-cache add git && \
     git clone --depth=1 https://github.com/tianon/gosu.git /gosu && \
     cd /gosu && \
