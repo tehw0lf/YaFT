@@ -1,4 +1,4 @@
-<svg viewBox="0 0 60 60" stroke="" fill="grey" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 60 60" stroke="" fill="#8e8e8e" xmlns="http://www.w3.org/2000/svg">
     <title>YaFT Logo</title>
     <desc>Yet Another Feature Toggle - Copyright 2025 tehw0lf</desc>
     <metadata>
@@ -11,8 +11,8 @@
         </rdf:RDF>
     </metadata>
     <!-- Y -->
-    <path d="M5,5 L30,28" stroke="grey" stroke-width="4" fill="none" />
-    <path d="M55,5 L30,28" stroke="grey" stroke-width="4" fill="none" />
+    <path d="M5,5 L30,28" stroke="#8e8e8e" stroke-width="4" fill="none" />
+    <path d="M55,5 L30,28" stroke="#8e8e8e" stroke-width="4" fill="none" />
     <!-- A -->
     <rect x="19" y="17.5" width="22" height="3" />
     <!-- F -->
