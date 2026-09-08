@@ -25,17 +25,21 @@ Copy and adapt `docker-compose.yml` or build your own setup.
 
 Images are published to `ghcr.io/tehw0lf/yaft` and `ghcr.io/tehw0lf/yaft-db`.
 
-Every push to `main` republishes `:latest`. Versioned tags are cut by pushing a
-git tag, following the usual Go convention of deriving the version from the tag
-rather than from a manifest:
+The project version lives in the `VERSION` file. Go has no version field in its
+manifest -- `go 1.27.0` in `go.mod` is the language version -- so the release
+tooling reads `VERSION` instead, the same way prometheus and consul do it.
+
+Bump it in the PR that should be released:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+echo 0.2.0 > VERSION
 ```
 
-This publishes `:v0.1.0` alongside `:latest`. The publish workflow skips a
-version tag that already exists in the registry rather than overwriting it, but
+On the next push to `main` the pipeline tags the commit `v0.2.0`, pushes that
+tag, and publishes `ghcr.io/tehw0lf/yaft:v0.2.0` and `yaft-db:v0.2.0` alongside
+`:latest`. An existing version tag is skipped rather than overwritten, so
+forgetting to bump republishes `:latest` only.
+
 GHCR tags stay mutable regardless, so pin the image digest
 (`ghcr.io/tehw0lf/yaft@sha256:...`) when a deployment has to be reproducible.
 
