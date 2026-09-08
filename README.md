@@ -25,19 +25,22 @@ Copy and adapt `docker-compose.yml` or build your own setup.
 
 Images are published to `ghcr.io/tehw0lf/yaft` and `ghcr.io/tehw0lf/yaft-db`.
 
-Every push to `main` republishes `:latest`. Versioned, immutable tags are cut
-by pushing a git tag, following the usual Go convention of deriving the version
-from the tag rather than from a manifest:
+Every push to `main` republishes `:latest`. Versioned tags are cut by pushing a
+git tag, following the usual Go convention of deriving the version from the tag
+rather than from a manifest:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-This publishes `:v0.1.0` alongside `:latest`. Pin a versioned tag for
-reproducible deployments -- `:latest` is overwritten on every push to `main`,
-which also means base image security patches only reach `:latest` when
-something is pushed.
+This publishes `:v0.1.0` alongside `:latest`. The publish workflow skips a
+version tag that already exists in the registry rather than overwriting it, but
+GHCR tags stay mutable regardless, so pin the image digest
+(`ghcr.io/tehw0lf/yaft@sha256:...`) when a deployment has to be reproducible.
+
+`:latest` is overwritten on every push to `main`, which also means base image
+security patches only reach `:latest` when something is pushed.
 
 # API Interaction
 
