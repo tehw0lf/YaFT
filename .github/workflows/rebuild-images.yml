@@ -1,0 +1,17 @@
+name: weekly image rebuild
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  rebuild:
+    name: external workflow
+    uses: tehw0lf/workflows/.github/workflows/publish-docker-image.yml@main
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+    with:
+      docker_meta: '[{"name": "yaft", "file": "Dockerfile"},{"name": "yaft-db", "file": "db/Dockerfile"}]'
