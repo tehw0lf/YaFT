@@ -51,38 +51,38 @@ docker compose -f docker-compose-local.yml down --volumes
 ### Testing and Quality (Docker-based)
 ```bash
 # Run all tests with verbose output
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v ./...
 
 # Run tests with coverage report
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -cover ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -cover ./...
 
 # Run tests with detailed coverage profile
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -coverprofile=coverage.out ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -coverprofile=coverage.out ./...
 
 # Generate HTML coverage report
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go tool cover -html=coverage.out -o coverage.html
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go tool cover -html=coverage.out -o coverage.html
 
 # Run specific test functions
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -run TestCreateFeatureToggle ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -run TestCreateFeatureToggle ./...
 
 # Run benchmark tests
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -bench=. ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -bench=. ./...
 
 # Run tests with race detection
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -race ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -race ./...
 
 # Format code using Docker
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go fmt ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go fmt ./...
 
 # Check and download modules
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go mod tidy
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go mod download
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go mod tidy
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go mod download
 
 # Build binary in Docker
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go build -o yaft main.go
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go build -buildvcs=false -o yaft main.go
 
 # Vet code for common issues
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go vet ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go vet ./...
 ```
 
 ### Database Operations (Docker-based)
@@ -256,13 +256,13 @@ func setupTestRouter(testDB *gorm.DB) *gin.Engine
 ### Running Specific Test Types
 ```bash
 # Run only unit tests (utility functions)
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -run "Test.*UUID|TestGenerateSecret|TestIsURLParseable" ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -run "Test.*UUID|TestGenerateSecret|TestIsURLParseable" ./...
 
 # Run only integration tests (API endpoints) 
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -run "Test.*Feature|TestCollection" ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -run "Test.*Feature|TestCollection" ./...
 
 # Run only benchmark tests
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 go test -v -run ^$ -bench . ./...
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -v -run ^$ -bench . ./...
 ```
 
 ## CI/CD Integration
@@ -287,11 +287,11 @@ This ensures that during CI/CD:
 
 ```bash
 # Full validation pipeline (matches CI/CD)
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 bash -c "go mod tidy && go vet ./... && go test -race -cover ./... && go build"
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 bash -c "go mod tidy && go vet ./... && go test -race -cover ./... && go build -buildvcs=false"
 
 # Quick validation (for faster feedback)
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 bash -c "go mod tidy && go test ./... && go build"
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 bash -c "go mod tidy && go test ./... && go build -buildvcs=false"
 
 # Coverage-focused validation
-docker run --rm -v $(pwd):/app -w /app golang:1.24.1 bash -c "go mod tidy && go test -cover ./... && go build"
+docker run --rm -v $(pwd):/app -w /app golang:1.27.0 bash -c "go mod tidy && go test -cover ./... && go build -buildvcs=false"
 ```
