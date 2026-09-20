@@ -31,6 +31,10 @@ type FeatureToggle struct {
 	DisabledAt *time.Time     `gorm:"null"`
 	Secret     string         `gorm:"null"`
 	Tags       pq.StringArray `gorm:"type:text[]"`
+	// Maintained by GORM. The retention job groups on UpdatedAt to decide
+	// whether a feature toggle group is stale.
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type FeatureToggleDTO struct {

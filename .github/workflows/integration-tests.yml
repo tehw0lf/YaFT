@@ -1,0 +1,32 @@
+# The integration suite needs a real PostgreSQL with pg_cron: it covers the
+# collectionHash query (PostgreSQL-only SQL), the scheduled flips running under
+# pg_cron, and the retention function. None of that can run in the Dockerfile
+# test stage, which has no database, so it gets its own job here.
+name: integration tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  integration:
+    name: postgres + pg_cron
+    runs-on: ubuntu-latest
+    # The scheduled-flip test waits for pg_cron, which fires once a minute.
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # The script generates a throwaway password for this run, waits for the
+      # database and tears the stack down afterwards.
+      - name: Run integration tests
+        run: scripts/integration-tests.sh
+
+      - name: Database logs on failure
+        if: failure()
+        run: docker compose --env-file /dev/null -f docker-compose-test.yml logs testdb || true
