@@ -10,14 +10,16 @@ Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 | Komponente | Ort | Version | Status |
 |---|---|---|---|
 | Go-Backend (dieses Repo) | `Go/YaFT` | 0.1.6 | Phase 1 erledigt; CI publisht `ghcr.io/tehw0lf/yaft` + `yaft-db` |
-| TypeScript-Library | `TypeScript/yaft` | 0.0.10 | Decorator `@FeatureToggle`, Provider-Interface, 4 Beispiel-Provider (LocalStorage/Api × Boolean/Feature), Jest-Suite |
+| TypeScript-Library | `TypeScript/yaft` | 0.0.11 | Decorator `@FeatureToggle`, Provider-Interface, 4 Beispiel-Provider (LocalStorage/Api × Boolean/Feature), Jest-Suite |
 | Admin-UI (Angular/Nx) | `TypeScript/yaft-admin` | 1.1.9 | nutzt `@tehw0lf/yaft` bereits mit LocalStorage- und API-Provider |
 
 Befunde aus dem Code, die den Plan prägen:
 
-- Die Zeitlogik (`isEnabled`) ist in yaft-ts dreimal identisch in den
-  Beispiel-Providern dupliziert und ruft fest `Date.now()` auf. Sie ist damit
-  weder zentral noch mit einer festen Uhrzeit testbar.
+- ~~Die Zeitlogik (`isEnabled`) ist in yaft-ts dreimal identisch dupliziert.~~
+  **Erledigt (yaft-ts 0.0.11).** Die Angabe war zudem falsch: sie war **zweimal**
+  dupliziert, in den beiden Feature-Providern. Die Boolean-Provider bilden
+  direkt auf `isEnabled` ab und haben per Design keine Zeitlogik. Jetzt zentral
+  in `evaluate(feature, now)`, Uhr injizierbar.
 - Der Klassen-Decorator wertet den Toggle einmal beim Laden der Klasse aus,
   der Methoden-Decorator bei jedem Aufruf. Das ist beobachtbares Verhalten und
   muss für Ports festgelegt werden.
@@ -177,14 +179,27 @@ Maven oder `go test` ohne Git-Handling auskommen:
 
 ### Folgearbeiten in yaft-ts
 
-1. Zeitlogik aus den drei Providern in eine zentrale Funktion
-   `evaluate(feature, now)` im Core ziehen, Provider rufen sie nur noch auf.
-2. Uhr injizierbar machen (Default `Date.now`), damit der Adapter `now` setzen kann.
+1. ✅ **Erledigt (0.0.11).** Zeitlogik aus den Feature-Providern in eine
+   zentrale Funktion `evaluate(feature, now)` gezogen; die Provider rufen nur
+   noch sie auf.
+2. ✅ **Erledigt (0.0.11).** Uhr injizierbar (`Clock = () => number`, Default
+   `systemClock`). Beide Feature-Provider nehmen sie als optionales
+   Konstruktor-Argument, Bestandscode bleibt unverändert.
 3. Adapter schreiben, Suite per `conformance.lock` einbinden, in die CI hängen.
 4. Die normativen Regeln aus "Port-Vorgaben" (Phase 3) nach
    `yaft-conformance/SPEC.md` übertragen und dort durchnummerieren (R1, R2, …),
    damit die Fall-Dateien per `rule` darauf zeigen können. Phase 3 verweist
    danach auf `SPEC.md` statt die Regeln selbst zu führen.
+
+Mit 1 und 2 ist yaft-ts bereit für den Adapter: `evaluate`, `parseTimestamp`,
+`Clock` und `systemClock` sind exportiert, und ein Fall aus den Fall-Dateien
+lässt sich direkt als `evaluate(feature, Date.parse(case.now))` prüfen.
+
+**Dabei festgelegt:** Nur RFC 3339 mit Offset gilt als gültig — das war im Plan
+schon so entschieden, wurde aber von `Date.parse` nicht durchgesetzt. Bare
+Dates (`2026-09-18`) und Zeitstempel ohne Offset werden jetzt ignoriert und
+geloggt. Das ist eine Verhaltensänderung gegenüber 0.0.10 und steht in der
+README von yaft-ts.
 
 Ergebnis: Ein Tag `yaft-conformance@v1`, gegen den yaft-ts grün ist.
 
@@ -499,8 +514,8 @@ Minimal lauffähiger Port: Feature-Shape lokal + Decorator. Der API-Provider
 kann danach kommen.
 
 Die Zeitlogik gehört **einmal** in den Core (`evaluate(feature, now)`), nicht
-in jeden Provider kopiert — in yaft-ts ist sie heute dreimal dupliziert und
-genau deshalb nicht testbar (siehe Phase 0, Folgearbeiten).
+in jeden Provider kopiert. In yaft-ts ist das seit 0.0.11 so umgesetzt und
+dient als Referenz für die Ports.
 
 ### Sprachen mit Decorators/Annotations
 
