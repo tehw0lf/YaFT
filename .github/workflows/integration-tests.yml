@@ -20,7 +20,9 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v5
+      # Pinned to a SHA, not a tag: a mutable tag can be repointed by the action
+      # owner. Same pin as the reusable workflows in tehw0lf/workflows.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The script generates a throwaway password for this run, waits for the
       # database and tears the stack down afterwards.
