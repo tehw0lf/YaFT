@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -454,4 +455,101 @@ func BenchmarkIsURLParseable(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		isURLParseable(secret)
 	}
+}
+// TestScheduleFeatureToggleAt covers PUT /features/activateAt and
+// /features/deactivateAt. Both routes previously wrote through a nil pointer
+// (*toggle.ActiveAt = ...) on any toggle without a date already set, which is
+// every freshly created one, and discarded the time.Parse error so invalid
+// input silently stored the zero time.
+func TestScheduleFeatureToggleAt(t *testing.T) {
+	testDB := setupTestDB(t)
+
+	withTestDB(testDB, func() {
+		router := setupTestRouter(testDB)
+
+		testUUID := uuid.New().String()
+		testSecret := "test-secret-123"
+
+		// newToggle creates a toggle with both dates unset, mirroring a plain POST.
+		newToggle := func(name string) string {
+			key := testUUID + "|" + name
+			require.NoError(t, testDB.Create(&FeatureToggle{
+				Key:    key,
+				Value:  "false",
+				Secret: testSecret,
+			}).Error)
+			return key
+		}
+
+		for _, route := range []struct {
+			name  string
+			path  string
+			field string
+		}{
+			{"activateAt", "activateAt", "activeAt"},
+			{"deactivateAt", "deactivateAt", "disabledAt"},
+		} {
+			t.Run(route.name, func(t *testing.T) {
+				t.Run("valid RFC 3339 on a toggle with no date set", func(t *testing.T) {
+					key := newToggle(route.name + "-valid")
+					date := "2026-09-18T15:00:00Z"
+
+					url := fmt.Sprintf("/features/%s/%s/%s/%s", route.path, key, date, testSecret)
+					req, _ := http.NewRequest("PUT", url, nil)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+
+					assert.Equal(t, http.StatusOK, w.Code)
+
+					var stored FeatureToggle
+					require.NoError(t, testDB.First(&stored, "key = ?", key).Error)
+
+					var got *time.Time
+					if route.field == "activeAt" {
+						got = stored.ActiveAt
+					} else {
+						got = stored.DisabledAt
+					}
+					require.NotNil(t, got, "date must be persisted")
+					assert.True(t, got.Equal(time.Date(2026, 9, 18, 15, 0, 0, 0, time.UTC)),
+						"stored %s, want 2026-09-18T15:00:00Z", got)
+				})
+
+				t.Run("rejects invalid dates instead of storing the zero time", func(t *testing.T) {
+					for _, date := range []string{
+						"2026-09-18",           // date only, no time or offset
+						"not-a-date",           // garbage
+						"2026-09-18T15:00:00",  // no offset
+					} {
+						key := newToggle(route.name + "-invalid-" + date)
+
+						url := fmt.Sprintf("/features/%s/%s/%s/%s", route.path, key, date, testSecret)
+						req, _ := http.NewRequest("PUT", url, nil)
+						w := httptest.NewRecorder()
+						router.ServeHTTP(w, req)
+
+						assert.Equalf(t, http.StatusBadRequest, w.Code, "date %q must be rejected", date)
+
+						var stored FeatureToggle
+						require.NoError(t, testDB.First(&stored, "key = ?", key).Error)
+						if route.field == "activeAt" {
+							assert.Nilf(t, stored.ActiveAt, "date %q must not be persisted", date)
+						} else {
+							assert.Nilf(t, stored.DisabledAt, "date %q must not be persisted", date)
+						}
+					}
+				})
+
+				t.Run("rejects an invalid secret", func(t *testing.T) {
+					key := newToggle(route.name + "-secret")
+					url := fmt.Sprintf("/features/%s/%s/%s/%s", route.path, key, "2026-09-18T15:00:00Z", "wrong-secret")
+					req, _ := http.NewRequest("PUT", url, nil)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+
+					assert.Equal(t, http.StatusUnauthorized, w.Code)
+				})
+			})
+		}
+	})
 }

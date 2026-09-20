@@ -448,7 +448,21 @@ func setupRouter() *gin.Engine {
 			return
 		}
 
-		*toggle.ActiveAt, _ = time.Parse(time.RFC3339, date)
+		parsed, err := time.Parse(time.RFC3339, date)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"method": "PUT",
+				"path":   "/features/activateAt/" + key + "/" + date,
+				"key":    key,
+				"date":   date,
+				"error":  err.Error(),
+			}).Error("Invalid date, returning 400")
+
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date, expected RFC 3339 with offset"})
+			return
+		}
+
+		toggle.ActiveAt = &parsed
 
 		if err := db.Save(&toggle).Error; err != nil {
 			logger.WithFields(logrus.Fields{
@@ -579,7 +593,21 @@ func setupRouter() *gin.Engine {
 			return
 		}
 
-		*toggle.DisabledAt, _ = time.Parse(time.RFC3339, date)
+		parsed, err := time.Parse(time.RFC3339, date)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"method": "PUT",
+				"path":   "/features/deactivateAt/" + key + "/" + date,
+				"key":    key,
+				"date":   date,
+				"error":  err.Error(),
+			}).Error("Invalid date, returning 400")
+
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date, expected RFC 3339 with offset"})
+			return
+		}
+
+		toggle.DisabledAt = &parsed
 
 		if err := db.Save(&toggle).Error; err != nil {
 			logger.WithFields(logrus.Fields{
