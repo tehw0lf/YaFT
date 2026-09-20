@@ -60,6 +60,25 @@ successful response:
 error response:
 `{"error":"Failed to create feature toggle"}`
 
+### Validation
+
+`Value` must be exactly `"true"` or `"false"`. Anything else -- `"TRUE"`,
+`"1"`, an empty value or a missing one -- is rejected:
+
+`{"error":"Invalid value, expected \"true\" or \"false\""}`
+
+This matters because a client library reads any value other than `"true"` as
+"off". Storing `"TRUE"` would look enabled in the database and be disabled in
+every consumer.
+
+`Key` is limited to 256 characters including the generated UUID prefix, so a
+single request cannot create an unbounded row. Keys sent without a prefix are
+checked against the remaining budget, since the prefix is added server-side:
+
+`{"error":"Key too long, maximum is 219 characters"}`
+
+Existing rows are not affected by either rule.
+
 ## Creating new Feature Toggles with existing UUID
 
 `curl -d '{"Key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","Value":"true","Secret":"156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"}' -X POST "http://127.0.0.1:8080/features"`

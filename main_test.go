@@ -209,14 +209,85 @@ func TestCreateFeatureToggle(t *testing.T) {
 				},
 			},
 			{
-				name: "create feature with missing required fields",
+				name: "create new feature with value false",
 				payload: map[string]interface{}{
-					"Key": "",  // Empty key should still work with UUID prefix
+					"Key":   "falsefeature",
+					"Value": "false",
+				},
+				expectedStatus: http.StatusCreated,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "secret")
+					assert.Equal(t, "false", resp["value"])
+				},
+			},
+			{
+				// An empty key is still accepted: the UUID prefix makes it
+				// addressable. Only the value is constrained here.
+				name: "create feature with empty key",
+				payload: map[string]interface{}{
+					"Key":   "",
+					"Value": "true",
 				},
 				expectedStatus: http.StatusCreated,
 				checkResponse: func(t *testing.T, resp map[string]interface{}) {
 					assert.Contains(t, resp, "secret")
 					assert.True(t, startsWithUUID(resp["key"].(string)))
+				},
+			},
+			{
+				name: "rejects a missing value",
+				payload: map[string]interface{}{
+					"Key": "novalue",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
+				},
+			},
+			{
+				name: "rejects a non-boolean value",
+				payload: map[string]interface{}{
+					"Key":   "truthy",
+					"Value": "TRUE",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
+				},
+			},
+			{
+				name: "rejects a numeric value",
+				payload: map[string]interface{}{
+					"Key":   "numeric",
+					"Value": "1",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
+				},
+			},
+			{
+				// 256 minus the UUID prefix and separator is the budget a
+				// caller-supplied key has; this is the last accepted length.
+				name: "accepts a key at the maximum length",
+				payload: map[string]interface{}{
+					"Key":   strings.Repeat("k", MaxKeyLength-len(uuid.New().String())-1),
+					"Value": "true",
+				},
+				expectedStatus: http.StatusCreated,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Len(t, resp["key"].(string), MaxKeyLength)
+				},
+			},
+			{
+				name: "rejects a key one character over the maximum",
+				payload: map[string]interface{}{
+					"Key":   strings.Repeat("k", MaxKeyLength-len(uuid.New().String())),
+					"Value": "true",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
 				},
 			},
 		}

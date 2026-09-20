@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +15,13 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+// MaxKeyLength caps the stored key, including the generated UUID prefix, so a
+// single request cannot create an unbounded row.
+const MaxKeyLength = 256
+
+// keySeparator divides the UUID prefix from the caller-supplied feature name.
+const keySeparator = "|"
 
 type FeatureToggle struct {
 	ID         uint           `gorm:"primaryKey"`
@@ -68,11 +76,11 @@ func prependUUID(key string) string {
 	for db.Where("key LIKE ?", newUUID+"%").Error != nil {
 		newUUID = uuid.New().String()
 	}
-	return newUUID + "|" + key
+	return newUUID + keySeparator + key
 }
 
 func startsWithUUID(key string) bool {
-	firstPart := strings.Split(key, "|")[0]
+	firstPart := strings.Split(key, keySeparator)[0]
 	_, err := uuid.Parse(firstPart)
 	return err == nil
 }
@@ -88,7 +96,7 @@ func generateSecret() string {
 
 func secretsMatch(key string, secret string) bool {
 	var toggles []FeatureToggle
-	if err := db.Where("key LIKE ?", strings.Split(key, "|")[0]+"%").Find(&toggles).Error; err == nil {
+	if err := db.Where("key LIKE ?", strings.Split(key, keySeparator)[0]+"%").Find(&toggles).Error; err == nil {
 		return len(toggles) != 0 && secret == toggles[0].Secret
 	}
 	return false
@@ -286,6 +294,37 @@ func setupRouter() *gin.Engine {
 			}).Error("Failed to bind JSON for new feature toggle")
 
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if newToggle.Value != "true" && newToggle.Value != "false" {
+			logger.WithFields(logrus.Fields{
+				"method": "POST",
+				"path":   "/features",
+				"key":    newToggle.Key,
+				"value":  newToggle.Value,
+			}).Error("Invalid value, returning 400")
+
+			c.JSON(http.StatusBadRequest, gin.H{"error": `Invalid value, expected "true" or "false"`})
+			return
+		}
+
+		// The UUID prefix is added below and counts towards the limit, so check
+		// against the budget that is left for the caller-supplied part.
+		maxKeyLength := MaxKeyLength
+		if !startsWithUUID(newToggle.Key) {
+			maxKeyLength -= len(uuid.New().String()) + len(keySeparator)
+		}
+
+		if len(newToggle.Key) > maxKeyLength {
+			logger.WithFields(logrus.Fields{
+				"method":    "POST",
+				"path":      "/features",
+				"keyLength": len(newToggle.Key),
+				"maxLength": maxKeyLength,
+			}).Error("Key too long, returning 400")
+
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Key too long, maximum is %d characters", maxKeyLength)})
 			return
 		}
 
