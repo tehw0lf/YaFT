@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -36,196 +37,15 @@ func withTestDB(testDB *gorm.DB, testFunc func()) {
 	testFunc()
 }
 
-// Test router setup
+// setupTestRouter builds the production router from setupRouter() so the tests
+// exercise the real handlers rather than a copy of them. The caller must already
+// have swapped the global db (see withTestDB), because setupRouter closes over it.
+//
+// Routes relying on PostgreSQL-only SQL (collectionHash) cannot be served by the
+// SQLite test database; they are covered by the integration suite instead.
 func setupTestRouter(testDB *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	
-	// Store original db and replace with test db
-	originalDB := db
-	db = testDB
-	defer func() { db = originalDB }()
-	
-	// Setup routes (simplified versions of main routes)
-	router.GET("/collectionHash/:key", func(c *gin.Context) {
-		key := c.Param("key")
-
-		var toggle FeatureToggle
-		if err := db.First(&toggle, "key = ?", key).Error; err != nil {
-			if !startsWithUUID(key) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Feature not found"})
-				return
-			}
-
-			var collectionHash string
-			// Simplified hash calculation for SQLite
-			if err := db.Raw(`
-				SELECT hex(group_concat(key || ' ' || value, ' ')) as hash
-				FROM feature_toggles WHERE key LIKE ? ORDER BY key
-			`, key+"%").Scan(&collectionHash).Error; err != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Failed to calculate collection hash for provided UUID"})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{
-				"collectionHash": collectionHash,
-			})
-		}
-	})
-
-	router.GET("/features/:key", func(c *gin.Context) {
-		key := c.Param("key")
-		var toggle FeatureToggle
-		
-		if err := db.First(&toggle, "key = ?", key).Error; err != nil {
-			if !startsWithUUID(key) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Feature not found"})
-				return
-			}
-			
-			var toggles []FeatureToggle
-			if err := db.Where("key LIKE ?", key+"%").Find(&toggles).Error; err != nil || len(toggles) == 0 {
-				c.JSON(http.StatusNotFound, gin.H{"error": "No feature toggles found for provided UUID"})
-				return
-			}
-
-			var strippedToggles []FeatureToggleDTO
-			for _, obj := range toggles {
-				strippedToggles = append(strippedToggles, FeatureToggleDTO{
-					Key:        obj.Key,
-					Value:      obj.Value,
-					ActiveAt:   obj.ActiveAt,
-					DisabledAt: obj.DisabledAt,
-				})
-			}
-			c.JSON(http.StatusOK, gin.H{"toggles": strippedToggles})
-		} else {
-			c.JSON(http.StatusOK, gin.H{
-				"key":        toggle.Key,
-				"value":      toggle.Value,
-				"activeAt":   toggle.ActiveAt,
-				"disabledAt": toggle.DisabledAt,
-			})
-		}
-	})
-
-	router.POST("/features", func(c *gin.Context) {
-		var newToggle FeatureToggle
-		if err := c.ShouldBindJSON(&newToggle); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		var secret string
-		if !startsWithUUID(newToggle.Key) {
-			newToggle.Key = prependUUID(newToggle.Key)
-			secret = generateSecret()
-			newToggle.Secret = secret
-		} else {
-			if !secretsMatch(newToggle.Key, newToggle.Secret) {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid secret"})
-				return
-			}
-		}
-
-		if err := db.Create(&newToggle).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create feature toggle"})
-			return
-		}
-
-		response := gin.H{
-			"key":        newToggle.Key,
-			"value":      newToggle.Value,
-			"activeAt":   newToggle.ActiveAt,
-			"disabledAt": newToggle.DisabledAt,
-		}
-		if secret != "" {
-			response["secret"] = secret
-		}
-		c.JSON(http.StatusCreated, response)
-	})
-
-	router.PUT("/features/activate/:key/:secret", func(c *gin.Context) {
-		key := c.Param("key")
-		secret := c.Param("secret")
-
-		if !secretsMatch(key, secret) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid secret"})
-			return
-		}
-
-		var toggle FeatureToggle
-		if err := db.First(&toggle, "key = ?", key).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Feature not found"})
-			return
-		}
-
-		toggle.Value = "true"
-		if err := db.Save(&toggle).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to activate feature toggle"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"key":        toggle.Key,
-			"value":      toggle.Value,
-			"activeAt":   toggle.ActiveAt,
-			"disabledAt": toggle.DisabledAt,
-		})
-	})
-
-	router.PUT("/features/deactivate/:key/:secret", func(c *gin.Context) {
-		key := c.Param("key")
-		secret := c.Param("secret")
-
-		if !secretsMatch(key, secret) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid secret"})
-			return
-		}
-
-		var toggle FeatureToggle
-		if err := db.First(&toggle, "key = ?", key).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Feature not found"})
-			return
-		}
-
-		toggle.Value = "false"
-		if err := db.Save(&toggle).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to deactivate feature toggle"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"key":        toggle.Key,
-			"value":      toggle.Value,
-			"activeAt":   toggle.ActiveAt,
-			"disabledAt": toggle.DisabledAt,
-		})
-	})
-
-	router.DELETE("/features/:key/:secret", func(c *gin.Context) {
-		key := c.Param("key")
-		secret := c.Param("secret")
-
-		if !secretsMatch(key, secret) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid secret"})
-			return
-		}
-
-		var toggle FeatureToggle
-		if err := db.First(&toggle, "key = ?", key).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Feature not found"})
-			return
-		}
-
-		if err := db.Delete(&toggle).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete feature toggle"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"message": "Feature toggle deleted"})
-	})
-	
-	return router
+	return setupRouter()
 }
 
 // Unit Tests for Utility Functions
@@ -389,14 +209,85 @@ func TestCreateFeatureToggle(t *testing.T) {
 				},
 			},
 			{
-				name: "create feature with missing required fields",
+				name: "create new feature with value false",
 				payload: map[string]interface{}{
-					"Key": "",  // Empty key should still work with UUID prefix
+					"Key":   "falsefeature",
+					"Value": "false",
+				},
+				expectedStatus: http.StatusCreated,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "secret")
+					assert.Equal(t, "false", resp["value"])
+				},
+			},
+			{
+				// An empty key is still accepted: the UUID prefix makes it
+				// addressable. Only the value is constrained here.
+				name: "create feature with empty key",
+				payload: map[string]interface{}{
+					"Key":   "",
+					"Value": "true",
 				},
 				expectedStatus: http.StatusCreated,
 				checkResponse: func(t *testing.T, resp map[string]interface{}) {
 					assert.Contains(t, resp, "secret")
 					assert.True(t, startsWithUUID(resp["key"].(string)))
+				},
+			},
+			{
+				name: "rejects a missing value",
+				payload: map[string]interface{}{
+					"Key": "novalue",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
+				},
+			},
+			{
+				name: "rejects a non-boolean value",
+				payload: map[string]interface{}{
+					"Key":   "truthy",
+					"Value": "TRUE",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
+				},
+			},
+			{
+				name: "rejects a numeric value",
+				payload: map[string]interface{}{
+					"Key":   "numeric",
+					"Value": "1",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
+				},
+			},
+			{
+				// 256 minus the UUID prefix and separator is the budget a
+				// caller-supplied key has; this is the last accepted length.
+				name: "accepts a key at the maximum length",
+				payload: map[string]interface{}{
+					"Key":   strings.Repeat("k", MaxKeyLength-len(uuid.New().String())-1),
+					"Value": "true",
+				},
+				expectedStatus: http.StatusCreated,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Len(t, resp["key"].(string), MaxKeyLength)
+				},
+			},
+			{
+				name: "rejects a key one character over the maximum",
+				payload: map[string]interface{}{
+					"Key":   strings.Repeat("k", MaxKeyLength-len(uuid.New().String())),
+					"Value": "true",
+				},
+				expectedStatus: http.StatusBadRequest,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
 				},
 			},
 		}
@@ -611,48 +502,6 @@ func TestDeactivateAndDeleteFeatureToggle(t *testing.T) {
 	})
 }
 
-func TestCollectionHash(t *testing.T) {
-	testDB := setupTestDB(t)
-	
-	withTestDB(testDB, func() {
-		router := setupTestRouter(testDB)
-		
-		// Setup test data
-		testUUID := uuid.New().String()
-		toggle1 := FeatureToggle{
-			Key:    testUUID + "|feature1",
-			Value:  "true",
-			Secret: "test-secret",
-		}
-		toggle2 := FeatureToggle{
-			Key:    testUUID + "|feature2",
-			Value:  "false",
-			Secret: "test-secret",
-		}
-		
-		err := testDB.Create(&toggle1).Error
-		require.NoError(t, err)
-		err = testDB.Create(&toggle2).Error
-		require.NoError(t, err)
-
-		t.Run("get collection hash for UUID with features", func(t *testing.T) {
-			url := fmt.Sprintf("/collectionHash/%s", testUUID)
-			req, _ := http.NewRequest("GET", url, nil)
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
-			
-			assert.Equal(t, http.StatusOK, w.Code)
-			
-			var response map[string]interface{}
-			err := json.Unmarshal(w.Body.Bytes(), &response)
-			require.NoError(t, err)
-			
-			assert.Contains(t, response, "collectionHash")
-			assert.NotEmpty(t, response["collectionHash"])
-		})
-	})
-}
-
 // Benchmark Tests
 func BenchmarkPrependUUID(b *testing.B) {
 	testDB, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -677,4 +526,101 @@ func BenchmarkIsURLParseable(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		isURLParseable(secret)
 	}
+}
+// TestScheduleFeatureToggleAt covers PUT /features/activateAt and
+// /features/deactivateAt. Both routes previously wrote through a nil pointer
+// (*toggle.ActiveAt = ...) on any toggle without a date already set, which is
+// every freshly created one, and discarded the time.Parse error so invalid
+// input silently stored the zero time.
+func TestScheduleFeatureToggleAt(t *testing.T) {
+	testDB := setupTestDB(t)
+
+	withTestDB(testDB, func() {
+		router := setupTestRouter(testDB)
+
+		testUUID := uuid.New().String()
+		testSecret := "test-secret-123"
+
+		// newToggle creates a toggle with both dates unset, mirroring a plain POST.
+		newToggle := func(name string) string {
+			key := testUUID + "|" + name
+			require.NoError(t, testDB.Create(&FeatureToggle{
+				Key:    key,
+				Value:  "false",
+				Secret: testSecret,
+			}).Error)
+			return key
+		}
+
+		for _, route := range []struct {
+			name  string
+			path  string
+			field string
+		}{
+			{"activateAt", "activateAt", "activeAt"},
+			{"deactivateAt", "deactivateAt", "disabledAt"},
+		} {
+			t.Run(route.name, func(t *testing.T) {
+				t.Run("valid RFC 3339 on a toggle with no date set", func(t *testing.T) {
+					key := newToggle(route.name + "-valid")
+					date := "2026-09-18T15:00:00Z"
+
+					url := fmt.Sprintf("/features/%s/%s/%s/%s", route.path, key, date, testSecret)
+					req, _ := http.NewRequest("PUT", url, nil)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+
+					assert.Equal(t, http.StatusOK, w.Code)
+
+					var stored FeatureToggle
+					require.NoError(t, testDB.First(&stored, "key = ?", key).Error)
+
+					var got *time.Time
+					if route.field == "activeAt" {
+						got = stored.ActiveAt
+					} else {
+						got = stored.DisabledAt
+					}
+					require.NotNil(t, got, "date must be persisted")
+					assert.True(t, got.Equal(time.Date(2026, 9, 18, 15, 0, 0, 0, time.UTC)),
+						"stored %s, want 2026-09-18T15:00:00Z", got)
+				})
+
+				t.Run("rejects invalid dates instead of storing the zero time", func(t *testing.T) {
+					for _, date := range []string{
+						"2026-09-18",           // date only, no time or offset
+						"not-a-date",           // garbage
+						"2026-09-18T15:00:00",  // no offset
+					} {
+						key := newToggle(route.name + "-invalid-" + date)
+
+						url := fmt.Sprintf("/features/%s/%s/%s/%s", route.path, key, date, testSecret)
+						req, _ := http.NewRequest("PUT", url, nil)
+						w := httptest.NewRecorder()
+						router.ServeHTTP(w, req)
+
+						assert.Equalf(t, http.StatusBadRequest, w.Code, "date %q must be rejected", date)
+
+						var stored FeatureToggle
+						require.NoError(t, testDB.First(&stored, "key = ?", key).Error)
+						if route.field == "activeAt" {
+							assert.Nilf(t, stored.ActiveAt, "date %q must not be persisted", date)
+						} else {
+							assert.Nilf(t, stored.DisabledAt, "date %q must not be persisted", date)
+						}
+					}
+				})
+
+				t.Run("rejects an invalid secret", func(t *testing.T) {
+					key := newToggle(route.name + "-secret")
+					url := fmt.Sprintf("/features/%s/%s/%s/%s", route.path, key, "2026-09-18T15:00:00Z", "wrong-secret")
+					req, _ := http.NewRequest("PUT", url, nil)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+
+					assert.Equal(t, http.StatusUnauthorized, w.Code)
+				})
+			})
+		}
+	})
 }

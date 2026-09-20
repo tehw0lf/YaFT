@@ -1,0 +1,63 @@
+# Integration test stack: a real PostgreSQL with pg_cron, initialised from
+# db/init.sql, so the scheduled flips and the retention function are exercised
+# as they are shipped rather than simulated against SQLite.
+#
+# The database password is supplied per run instead of being written down here.
+# It guards a throwaway container that publishes no port and is destroyed with
+# its volume after the run, but a literal in the file would still be a
+# hardcoded credential -- both to a secret scanner and to anyone skimming the
+# repo. scripts/integration-tests.sh generates one and runs the whole cycle:
+#
+#   scripts/integration-tests.sh
+#
+# To drive the stack by hand, export a password first; every command below
+# needs the same value, because it is baked into the database on first start:
+#
+#   export POSTGRES_PASSWORD="$(openssl rand -hex 16)"
+#   docker compose --env-file /dev/null -f docker-compose-test.yml up -d --build testdb
+#   docker compose --env-file /dev/null -f docker-compose-test.yml run --rm tests
+#   docker compose --env-file /dev/null -f docker-compose-test.yml down --volumes
+#
+# `--env-file /dev/null` matters: Compose otherwise resolves ${POSTGRES_PASSWORD}
+# from the .env file in this directory, which holds the developer's real
+# database password. This throwaway stack would silently borrow it and the
+# required-variable check below would never fire.
+
+services:
+  testdb:
+    build: db
+    environment:
+      POSTGRES_USER: yaft
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD to a throwaway value, or use scripts/integration-tests.sh}
+      POSTGRES_DB: yaft
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command:
+      [
+        "postgres",
+        "-c",
+        "shared_preload_libraries=pg_cron",
+        "-c",
+        "cron.database_name=yaft",
+      ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yaft -d yaft"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  tests:
+    image: golang:1.27.0
+    working_dir: /app
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+    environment:
+      YAFT_TEST_DSN: postgres://yaft:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD to a throwaway value, or use scripts/integration-tests.sh}@testdb:5432/yaft
+    depends_on:
+      testdb:
+        condition: service_healthy
+    command: ["go", "test", "-tags=integration", "-v", "-count=1", "-timeout=15m", "./..."]
+
+volumes:
+  go_mod_cache:

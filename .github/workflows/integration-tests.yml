@@ -1,0 +1,39 @@
+# The integration suite needs a real PostgreSQL with pg_cron: it covers the
+# collectionHash query (PostgreSQL-only SQL), the scheduled flips running under
+# pg_cron, and the retention function. None of that can run in the Dockerfile
+# test stage, which has no database, so it gets its own job here.
+name: integration tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  integration:
+    name: postgres + pg_cron
+    runs-on: ubuntu-latest
+    # The scheduled-flip test waits for pg_cron, which fires once a minute.
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      # Pinned to a SHA, not a tag: a mutable tag can be repointed by the action
+      # owner. Same pin as the reusable workflows in tehw0lf/workflows.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # This job runs repository-controlled scripts on the host, including
+          # for pull_request events. Without this the checkout leaves the
+          # GITHUB_TOKEN on the runner where those scripts could read it; the
+          # suite needs no credential of any kind.
+          persist-credentials: false
+
+      # The script generates a throwaway password for this run, waits for the
+      # database and tears the stack down afterwards.
+      - name: Run integration tests
+        run: scripts/integration-tests.sh
+
+      # The script dumps the database logs itself before tearing the stack
+      # down; a step here would run after the container is already gone.
