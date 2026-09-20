@@ -1,22 +1,57 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-20 (Phase 1 abgeschlossen)
+Stand: 2026-09-20 (Phase 1 abgeschlossen, Phase 0 begonnen)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
+
+## Hier weitermachen
+
+Stand 2026-09-20. Phase 1 ist fertig (Backend 0.1.6), Folgearbeiten 1 und 2 von
+Phase 0 sind fertig (yaft-ts 0.0.12). Beide Repos sind auf `main`, sauber, CI
+grün.
+
+Der nächste Schritt ist **Phase 0, Folgearbeit 4 vor 3** — erst die Regeln
+festschreiben, dann den Adapter dagegen bauen:
+
+1. **Repo `yaft-conformance` anlegen** (Aufbau siehe Phase 0 oben).
+2. **`SPEC.md` schreiben**: die normativen Regeln aus "Port-Vorgaben" (Phase 3
+   dieses Dokuments) übernehmen und als R1, R2, … durchnummerieren. Die
+   Vorlage dafür steht bereits; `src/evaluate.ts` in yaft-ts ist die
+   ausformulierte Referenz-Implementierung und deckt sich damit. Nicht
+   vergessen: die Kalenderdatums-Regel und die Schaltsekunden-Regel oben.
+3. **Fall-Dateien** `evaluation.json`, `decorator.json`, `mapping.json` plus
+   `case.schema.json`. Die Fälle in
+   `TypeScript/yaft/src/test/evaluate.spec.ts` sind schon nach diesen Regeln
+   gebaut (Grenzen, invertierte Fenster, Offsets, jedes abgelehnte Format) und
+   lassen sich weitgehend direkt in Fall-Daten übersetzen.
+4. **Adapter in yaft-ts**, `conformance.lock`, `scripts/fetch-conformance.sh`,
+   CI-Einbindung.
+
+Für Schritt 4 ist alles Nötige exportiert: `evaluate`, `parseTimestamp`,
+`Clock`, `systemClock`. Ein Fall wird zu
+`evaluate(feature, Date.parse(case.now))`.
+
+Offen daneben, unabhängig und jederzeit machbar:
+
+- **Phase 2, Deployment `yaft.tehwolf.de`**: Compose-Datei nach Traefik-Muster,
+  DNS-Eintrag, Retention-Job scharfschalten (`cron.schedule`, siehe README des
+  Backends) und bei einer bereits laufenden DB die alten
+  `CURRENT_DATE`-Cronjobs ersetzen — `db/init.sql` läuft nur bei leerem
+  Datenverzeichnis.
 
 ## Ausgangslage
 
 | Komponente | Ort | Version | Status |
 |---|---|---|---|
 | Go-Backend (dieses Repo) | `Go/YaFT` | 0.1.6 | Phase 1 erledigt; CI publisht `ghcr.io/tehw0lf/yaft` + `yaft-db` |
-| TypeScript-Library | `TypeScript/yaft` | 0.0.11 | Decorator `@FeatureToggle`, Provider-Interface, 4 Beispiel-Provider (LocalStorage/Api × Boolean/Feature), Jest-Suite |
+| TypeScript-Library | `TypeScript/yaft` | 0.0.12 | Decorator `@FeatureToggle`, Provider-Interface, 4 Beispiel-Provider (LocalStorage/Api × Boolean/Feature), Jest-Suite |
 | Admin-UI (Angular/Nx) | `TypeScript/yaft-admin` | 1.1.9 | nutzt `@tehw0lf/yaft` bereits mit LocalStorage- und API-Provider |
 
 Befunde aus dem Code, die den Plan prägen:
 
 - ~~Die Zeitlogik (`isEnabled`) ist in yaft-ts dreimal identisch dupliziert.~~
-  **Erledigt (yaft-ts 0.0.11).** Die Angabe war zudem falsch: sie war **zweimal**
+  **Erledigt (yaft-ts 0.0.12).** Die Angabe war zudem falsch: sie war **zweimal**
   dupliziert, in den beiden Feature-Providern. Die Boolean-Provider bilden
   direkt auf `isEnabled` ab und haben per Design keine Zeitlogik. Jetzt zentral
   in `evaluate(feature, now)`, Uhr injizierbar.
@@ -179,10 +214,10 @@ Maven oder `go test` ohne Git-Handling auskommen:
 
 ### Folgearbeiten in yaft-ts
 
-1. ✅ **Erledigt (0.0.11).** Zeitlogik aus den Feature-Providern in eine
+1. ✅ **Erledigt (0.0.12).** Zeitlogik aus den Feature-Providern in eine
    zentrale Funktion `evaluate(feature, now)` gezogen; die Provider rufen nur
    noch sie auf.
-2. ✅ **Erledigt (0.0.11).** Uhr injizierbar (`Clock = () => number`, Default
+2. ✅ **Erledigt (0.0.12).** Uhr injizierbar (`Clock = () => number`, Default
    `systemClock`). Beide Feature-Provider nehmen sie als optionales
    Konstruktor-Argument, Bestandscode bleibt unverändert.
 3. Adapter schreiben, Suite per `conformance.lock` einbinden, in die CI hängen.
@@ -200,6 +235,22 @@ schon so entschieden, wurde aber von `Date.parse` nicht durchgesetzt. Bare
 Dates (`2026-09-18`) und Zeitstempel ohne Offset werden jetzt ignoriert und
 geloggt. Das ist eine Verhaltensänderung gegenüber 0.0.10 und steht in der
 README von yaft-ts.
+
+**Fallstrick für jeden Port** (im Review von yaft-ts#20 gefunden): Eine reine
+Formatprüfung per Regex reicht nicht. `Date.parse` verwirft ein unmögliches
+Kalenderdatum nicht, sondern rollt es weiter — `2027-02-30` wird zum 2. März.
+Ein so um Tage verschobener Grenzwert ist schlimmer als ein ignorierter. Die
+Komponenten müssen vor dem Parsen auf gültige Bereiche geprüft werden
+(Schaltjahre inklusive). Sprachen mit ähnlich nachsichtigem Parser haben
+dasselbe Problem; gehört als Regel nach `SPEC.md`.
+
+Beim Testen darauf achten, dass das unmögliche Datum **in der Zukunft** liegt:
+Ein Wert wie `2026-02-30` rollt in die Vergangenheit, wo die `activeAt`-Prüfung
+zufällig durchgeht und der Test aus dem falschen Grund besteht. Genau dieser
+Fehler steckte in der ersten Fassung der Tests.
+
+Schaltsekunden (`23:59:60`) erlaubt RFC 3339, `Date.parse` kann sie nicht — in
+yaft-ts werden sie deshalb ignoriert. Ports sollten das gleich handhaben.
 
 Ergebnis: Ein Tag `yaft-conformance@v1`, gegen den yaft-ts grün ist.
 
@@ -514,7 +565,7 @@ Minimal lauffähiger Port: Feature-Shape lokal + Decorator. Der API-Provider
 kann danach kommen.
 
 Die Zeitlogik gehört **einmal** in den Core (`evaluate(feature, now)`), nicht
-in jeden Provider kopiert. In yaft-ts ist das seit 0.0.11 so umgesetzt und
+in jeden Provider kopiert. In yaft-ts ist das seit 0.0.12 so umgesetzt und
 dient als Referenz für die Ports.
 
 ### Sprachen mit Decorators/Annotations
@@ -697,8 +748,3 @@ kritische Pfad**: Phase 2 braucht die Matrix daraus, Phase 3 die Abnahme.
 
 Phase 3 kann für den Core-Teil (ohne ApiProvider) parallel zu Phase 2
 beginnen, sobald `yaft-conformance@v1` getaggt ist.
-
-Nächster sinnvoller Schritt: Phase 0, beginnend mit den Folgearbeiten in
-yaft-ts (Zeitlogik aus den drei Providern in ein zentrales
-`evaluate(feature, now)` ziehen und die Uhr injizierbar machen) — ohne die
-lässt sich kein Konformitäts-Adapter schreiben.
