@@ -117,7 +117,13 @@ func setupDatabase() {
 func main() {
 	// Setup database connection
 	setupDatabase()
-	
+
+	setupRouter().Run()
+}
+
+// setupRouter registers every route on a fresh engine. It is called by main()
+// and by the tests, so both exercise the same handlers.
+func setupRouter() *gin.Engine {
 	router := gin.Default()
 
 	// Add CORS middleware
@@ -714,5 +720,5 @@ func main() {
 		})
 	})
 
-	router.Run()
+	return router
 }
