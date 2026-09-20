@@ -9,7 +9,7 @@ Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 
 | Komponente | Ort | Version | Status |
 |---|---|---|---|
-| Go-Backend (dieses Repo) | `Go/YaFT` | 0.1.5 | Phase 1 erledigt; CI publisht `ghcr.io/tehw0lf/yaft` + `yaft-db` |
+| Go-Backend (dieses Repo) | `Go/YaFT` | 0.1.6 | Phase 1 erledigt; CI publisht `ghcr.io/tehw0lf/yaft` + `yaft-db` |
 | TypeScript-Library | `TypeScript/yaft` | 0.0.10 | Decorator `@FeatureToggle`, Provider-Interface, 4 Beispiel-Provider (LocalStorage/Api × Boolean/Feature), Jest-Suite |
 | Admin-UI (Angular/Nx) | `TypeScript/yaft-admin` | 1.1.9 | nutzt `@tehw0lf/yaft` bereits mit LocalStorage- und API-Provider |
 
@@ -190,7 +190,7 @@ Ergebnis: Ein Tag `yaft-conformance@v1`, gegen den yaft-ts grün ist.
 
 ## Phase 1 – Backend härten und Zeitlogik angleichen ✅ ERLEDIGT
 
-Umgesetzt auf `fix/phase-1-backend-hardening`, Version 0.1.5.
+Umgesetzt auf `fix/phase-1-backend-hardening`, Version 0.1.6.
 
 | # | Vorhaben | Status |
 |---|---|---|

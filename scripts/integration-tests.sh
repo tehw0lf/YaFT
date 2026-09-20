@@ -25,7 +25,15 @@ fi
 cleanup() {
     "${COMPOSE[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
 }
-trap cleanup EXIT
+
+# On failure the database logs are the only record of what went wrong, and the
+# trap tears the stack down before any caller can collect them -- so dump them
+# here, while the container still exists.
+on_failure() {
+    echo "--- testdb logs ---" >&2
+    "${COMPOSE[@]}" logs testdb >&2 2>/dev/null || true
+}
+trap 'status=$?; [[ $status -ne 0 ]] && on_failure; cleanup; exit $status' EXIT
 
 # A stack left over from an earlier run still holds the previous password in
 # its volume, so start from a clean slate.

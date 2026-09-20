@@ -23,12 +23,17 @@ jobs:
       # Pinned to a SHA, not a tag: a mutable tag can be repointed by the action
       # owner. Same pin as the reusable workflows in tehw0lf/workflows.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # This job runs repository-controlled scripts on the host, including
+          # for pull_request events. Without this the checkout leaves the
+          # GITHUB_TOKEN on the runner where those scripts could read it; the
+          # suite needs no credential of any kind.
+          persist-credentials: false
 
       # The script generates a throwaway password for this run, waits for the
       # database and tears the stack down afterwards.
       - name: Run integration tests
         run: scripts/integration-tests.sh
 
-      - name: Database logs on failure
-        if: failure()
-        run: docker compose --env-file /dev/null -f docker-compose-test.yml logs testdb || true
+      # The script dumps the database logs itself before tearing the stack
+      # down; a step here would run after the container is already gone.
