@@ -15,8 +15,8 @@ Der nächste Schritt ist **Phase 0, Folgearbeit 3 — der Adapter in yaft-ts**.
 Alles Nötige zum Pinnen existiert:
 
 ```
-version=v1.0.0
-sha256=33a6bf14d709ed6395df5f31dcd6fc5e5e626a2ee5be3903ef7360798ce15845
+version=v1.1.0
+sha256=d83ff1c960ad29830c00b57727591da628f4323b777faea245f603565d1c9ae9
 ```
 
 1. **`conformance.lock`** mit obigen Werten in yaft-ts anlegen,
@@ -53,6 +53,19 @@ haben Fälle in `mapping.json`; yaft-ts besteht diese zwei Fälle heute **nicht*
   Feldern fällt hinten runter. Heute latent, weil der Provider nur die
   Gruppen-URL abruft.
 
+**Die Ursache ist im Backend behoben (0.2.0).** `FeatureToggleDTO` hat jetzt
+JSON-Tags, und die sechs handgeschriebenen `gin.H`-Literale sind durch einen
+`toDTO`-Helfer ersetzt — es gibt nur noch eine Definition der Antwortform statt
+sieben auseinanderlaufender Kopien. Beide Hüllen liefern kleingeschrieben.
+
+Die Regeln bleiben trotzdem: ein Port weiß nicht, gegen welche Backend-Version
+er spricht, und Instanzen vor 0.2.0 bleiben im Umlauf. In der Suite steht das
+jetzt als **R22a** (kleingeschrieben ist die Regel, großgeschrieben ist Legacy,
+das ein Port weiterhin lesen muss), Suite-Version 1.1.0. Derselbe
+Truthiness-Fehler steckt übrigens auch in **yaft-admin**
+(`yaft-provider.service.ts`, sechs Stellen) — nach dem Backend-Fix greift die
+Falle dort nicht mehr, der Code bleibt aber fragil.
+
 Offen daneben, unabhängig und jederzeit machbar:
 
 - **Phase 2, Deployment `yaft.tehwolf.de`**: Compose-Datei nach Traefik-Muster,
@@ -65,7 +78,7 @@ Offen daneben, unabhängig und jederzeit machbar:
 
 | Komponente | Ort | Version | Status |
 |---|---|---|---|
-| Go-Backend (dieses Repo) | `Go/YaFT` | 0.1.6 | Phase 1 erledigt; CI publisht `ghcr.io/tehw0lf/yaft` + `yaft-db` |
+| Go-Backend (dieses Repo) | `Go/YaFT` | 0.2.0 | Phase 1 erledigt; seit 0.2.0 eine einheitliche, kleingeschriebene Antwortform (R22a); CI publisht `ghcr.io/tehw0lf/yaft` + `yaft-db` |
 | TypeScript-Library | `TypeScript/yaft` | 0.0.12 | Decorator `@FeatureToggle`, Provider-Interface, 4 Beispiel-Provider (LocalStorage/Api × Boolean/Feature), Jest-Suite |
 | Admin-UI (Angular/Nx) | `TypeScript/yaft-admin` | 1.1.9 | nutzt `@tehw0lf/yaft` bereits mit LocalStorage- und API-Provider |
 
@@ -95,10 +108,12 @@ Befunde aus dem Code, die den Plan prägen:
   `...At`-Routen gar nicht — deshalb konnte der Panic oben unbemerkt
   überleben. Routen stecken jetzt in `setupRouter()`, das `main()` und die
   Tests gemeinsam benutzen.
-- `GET /features/:key` liefert zwei verschiedene Formen: Ein Einzel-Toggle
-  kommt mit kleingeschriebenen Feldern (`key`, `value`, …), eine UUID-Gruppe
-  als `{"toggles": [...]}` mit großgeschriebenen (`Key`, `Value`, …), weil
-  `FeatureToggleDTO` keine JSON-Tags hat. Ports müssen beides lesen können.
+- ~~`GET /features/:key` liefert zwei verschiedene Formen: großgeschrieben in
+  der Gruppe, kleingeschrieben einzeln.~~ **Behoben in 0.2.0.** Das DTO hat
+  JSON-Tags, beide Hüllen liefern kleingeschrieben, und die sechs
+  handgeschriebenen `gin.H`-Antworten sind durch `toDTO` ersetzt. Ports müssen
+  die großgeschriebene Form trotzdem lesen können, solange ältere Instanzen
+  laufen — steht als R22a in der Suite.
 - ~~`time.Parse` in `activateAt`/`deactivateAt` verwirft den Fehler mit `_`.~~
   **Erledigt in Phase 1, und der Befund war zu harmlos formuliert:** die
   Handler schrieben mit `*toggle.ActiveAt, _ = time.Parse(...)` durch genau
@@ -285,10 +300,10 @@ sondern JSON-Fälle, ein Markdown-Spec, ein Python-Prüfskript und ein
 Bash-Skript. Sie ist für jeden Port gleichermaßen da. `workflows/` liegt aus
 demselben Grund auf oberster Ebene.
 
-- `SPEC.md`: 26 Regeln. R1–R2 Datenmodell, R3–R9 Auswertung, R10–R13
+- `SPEC.md`: 27 Regeln. R1–R2 Datenmodell, R3–R9 Auswertung, R10–R13
   Zeitstempel (inkl. Kalender-Rollover und Schaltsekunde), R14–R19 Decorator,
   R20–R21 Provider-Shapes, R22–R25 Mapping, R26 Backend-Abgleich.
-- 89 Fälle: 59 `evaluation`, 16 `decorator`, 14 `mapping`.
+- 90 Fälle: 59 `evaluation`, 16 `decorator`, 15 `mapping` (Stand 1.1.0).
 - `schema/case.schema.json` je Suite eigene Pflichtfelder; gegen fünf bewusst
   kaputte Dateien geprüft, alle abgelehnt.
 - `scripts/validate-cases.py` prüft Regelverweise, doppelte Namen und
@@ -318,7 +333,8 @@ Ergebnis: Tag `yaft-conformance@v1.0.0` steht.
 verifiziert grün. Volle Konformität ist damit **nicht** erreicht — die
 `mapping`-Fälle `empty-value-not-replaced` (R23) und `single-toggle-lowercase`
 (R22) schlagen fehl, und die 16 `decorator`-Fälle sind mangels Adapter noch
-ungeprüft. Offen bleibt also: Adapter bauen, R22/R23 fixen, alle 89 Fälle grün.
+ungeprüft. Den neuen Fall `toggles-lowercase` (R22a) besteht yaft-ts bereits.
+Offen bleibt also: Adapter bauen, R22/R23 fixen, alle 90 Fälle grün.
 
 ## Phase 1 – Backend härten und Zeitlogik angleichen ✅ ERLEDIGT
 
