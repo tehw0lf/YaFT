@@ -9,7 +9,7 @@ Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 
 Stand 2026-09-21. Phase 1 ist fertig (Backend 0.1.6), Folgearbeit 4 von Phase 0
 ist fertig und **veröffentlicht**: `github.com/tehw0lf/yaft-conformance` ist
-öffentlich, CI grün, Tag `v1.0.0` gesetzt, Release-Asset liegt bereit.
+öffentlich, CI grün, aktueller Tag `v1.1.0`, Release-Asset liegt bereit.
 
 Der nächste Schritt ist **Phase 0, Folgearbeit 3 — der Adapter in yaft-ts**.
 Alles Nötige zum Pinnen existiert:
@@ -258,7 +258,7 @@ Maven oder `go test` ohne Git-Handling auskommen:
    Konstruktor-Argument, Bestandscode bleibt unverändert.
 3. **Offen.** Adapter schreiben, Suite per `conformance.lock` einbinden, in
    die CI hängen. Siehe "Hier weitermachen" oben.
-4. ✅ **Erledigt (Suite 1.0.0, lokal).** Die normativen Regeln stehen als R1–R26
+4. ✅ **Erledigt (Suite 1.1.0).** Die normativen Regeln stehen als R1–R26 plus R22a
    in `yaft-conformance/SPEC.md`, die Fall-Dateien zeigen per `rules` darauf.
    Ein CI-Skript erzwingt, dass jede Regel mindestens einen Fall hat oder
    ausdrücklich als strukturell begründet ist. Phase 3 dieses Dokuments bleibt
@@ -293,7 +293,8 @@ yaft-ts werden sie deshalb ignoriert. Ports sollten das gleich handhaben.
 ### Stand der Suite (2026-09-21)
 
 Angelegt unter `yaft-conformance/` in der Workspace-Wurzel, öffentlich unter
-`github.com/tehw0lf/yaft-conformance`, Tag `v1.0.0`.
+`github.com/tehw0lf/yaft-conformance`, aktueller Tag `v1.1.0` (v1.0.0 war der
+erste Release, ohne R22a).
 
 **Nicht** unter `TypeScript/`: die Suite enthält keine Zeile TypeScript,
 sondern JSON-Fälle, ein Markdown-Spec, ein Python-Prüfskript und ein
@@ -323,11 +324,13 @@ Beim Verifizieren des Releases fiel noch ein echter Fehler auf: das Tarball
 zeichnete die Rechte-Bits des Checkouts auf, also ergab derselbe Baum in der CI
 (0644) und lokal bei restriktiver umask (0640) **verschiedene Prüfsummen** bei
 identischem Inhalt. Das entwertet die Prüfsumme, die ein Port pinnt. Behoben
-mit `--mode='u=rwX,go=rX'`; das veröffentlichte v1.0.0 trägt bereits die
-reproduzierbare Summe, ein Re-Release war nicht nötig. Die README zeigt jetzt
+mit `--mode='u=rwX,go=rX'`; das damals veröffentlichte v1.0.0 trug bereits die
+reproduzierbare Summe, ein Re-Release war nicht nötig. Für v1.1.0 wurde der
+Nachbau aus dem Tag gegengeprüft und stimmt überein. Die README zeigt jetzt
 den Nachbau-Befehl.
 
-Ergebnis: Tag `yaft-conformance@v1.0.0` steht.
+Ergebnis: Tag `yaft-conformance@v1.1.0` steht; das ist der Stand, gegen den ein
+Port pinnt.
 
 **Stand der Konformität von yaft-ts 0.0.12:** die 59 `evaluation`-Fälle sind
 verifiziert grün. Volle Konformität ist damit **nicht** erreicht — die
@@ -829,4 +832,4 @@ Phase 1 ist erledigt und blockiert nichts mehr. **Phase 0 ist damit der
 kritische Pfad**: Phase 2 braucht die Matrix daraus, Phase 3 die Abnahme.
 
 Phase 3 kann für den Core-Teil (ohne ApiProvider) parallel zu Phase 2
-beginnen; `yaft-conformance@v1.0.0` ist getaggt, die Abnahme steht also bereit.
+beginnen; `yaft-conformance@v1.1.0` ist getaggt, die Abnahme steht also bereit.
