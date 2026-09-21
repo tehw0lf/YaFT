@@ -361,6 +361,19 @@ func TestGetFeatureToggle(t *testing.T) {
 					assert.Contains(t, resp, "toggles")
 					toggles := resp["toggles"].([]interface{})
 					assert.Len(t, toggles, 1)
+
+					// A group used to come back capitalised while a single
+					// toggle came back lowercase, because the DTO carried no
+					// JSON tags. Asserting the field names keeps the two
+					// shapes from drifting apart again.
+					toggle := toggles[0].(map[string]interface{})
+					for _, field := range []string{"key", "value", "activeAt", "disabledAt", "tags"} {
+						assert.Contains(t, toggle, field)
+					}
+					for _, field := range []string{"Key", "Value", "ActiveAt", "DisabledAt", "Tags"} {
+						assert.NotContains(t, toggle, field)
+					}
+					assert.NotContains(t, toggle, "secret", "the group response must never carry a secret")
 				},
 			},
 		}
