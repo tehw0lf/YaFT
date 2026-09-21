@@ -79,7 +79,7 @@ paths:
                 value:
                   Key: 896ea308-382f-46b0-bc59-d93a28013633|myOtherKey
                   Value: "true"
-                  Secret: 156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9
+                  Secret: example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff
       responses:
         '201':
           description: |
@@ -396,10 +396,16 @@ components:
       name: secret
       in: path
       required: true
-      description: The group's shared secret, as returned when it was created.
+      description: |
+        The group's shared secret, as returned when it was created.
+
+        A real one is three concatenated UUIDs. The example here spells out
+        `example` in each of them on purpose: a realistic-looking value trips
+        secret scanners on every file that carries it, and teaches readers to
+        wave such warnings away.
       schema:
         type: string
-      example: 156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9
+      example: example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff
     Date:
       name: date
       in: path

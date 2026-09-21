@@ -159,7 +159,7 @@ The examples below are the same calls by hand.
 ### Responses
 
 successful response:
-`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null,"secret":"156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"}`
+`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null,"secret":"example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"}`
 
 error response:
 `{"error":"Failed to create feature toggle"}`
@@ -185,7 +185,7 @@ Existing rows are not affected by either rule.
 
 ## Creating new Feature Toggles with existing UUID
 
-`curl -d '{"Key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","Value":"true","Secret":"156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"}' -X POST "http://127.0.0.1:8080/features"`
+`curl -d '{"Key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","Value":"true","Secret":"example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"}' -X POST "http://127.0.0.1:8080/features"`
 
 ### Responses
 
@@ -200,7 +200,7 @@ error response if secret is correct but key exists:
 
 ## Deleting a specific Feature Toggle
 
-`curl -X DELETE "http://127.0.0.1:8080/features/896ea308-382f-46b0-bc59-d93a28013633|myKey/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X DELETE "http://127.0.0.1:8080/features/896ea308-382f-46b0-bc59-d93a28013633|myKey/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -215,7 +215,7 @@ error response if secret is correct but feature was not found:
 
 ## Activate a Feature Toggle
 
-`curl -X PUT "http://127.0.0.1:8080/features/activate/896ea308-382f-46b0-bc59-d93a28013633|myKey/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/activate/896ea308-382f-46b0-bc59-d93a28013633|myKey/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -230,7 +230,7 @@ error response if secret is correct but feature was not found:
 
 ## Activate a Feature Toggle at a certain date
 
-`curl -X PUT "http://127.0.0.1:8080/features/activateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/activateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -267,7 +267,7 @@ delay.
 
 ## Deactivate a Feature Toggle
 
-`curl -X PUT "http://127.0.0.1:8080/features/deactivate/896ea308-382f-46b0-bc59-d93a28013633|myKey/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/deactivate/896ea308-382f-46b0-bc59-d93a28013633|myKey/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -282,7 +282,7 @@ error response if secret is correct but feature was not found:
 
 ## Deactivate a Feature Toggle at a certain date
 
-`curl -X PUT "http://127.0.0.1:8080/features/deactivateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/deactivateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -339,7 +339,7 @@ error response:
 
 ## Updating a secret for a given UUID
 
-`curl -X PUT "http://127.0.0.1:8080/secret/update/896ea308-382f-46b0-bc59-d93a28013633/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9/mynewsecret"`
+`curl -X PUT "http://127.0.0.1:8080/secret/update/896ea308-382f-46b0-bc59-d93a28013633/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff/mynewsecret"`
 
 ### Responses
 
