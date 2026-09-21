@@ -1,36 +1,52 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-20 (Phase 1 abgeschlossen, Phase 0 begonnen)
+Stand: 2026-09-21 (Phase 1 abgeschlossen, Phase 0 zur Hälfte)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
 
 ## Hier weitermachen
 
-Stand 2026-09-20. Phase 1 ist fertig (Backend 0.1.6), Folgearbeiten 1 und 2 von
-Phase 0 sind fertig (yaft-ts 0.0.12). Beide Repos sind auf `main`, sauber, CI
-grün.
+Stand 2026-09-21. Phase 1 ist fertig (Backend 0.1.6), Folgearbeiten 1, 2 und 4
+von Phase 0 sind fertig. `yaft-conformance` existiert mit `SPEC.md` (26 Regeln)
+und 89 Fällen; das Repo ist lokal committed, aber **noch nicht auf GitHub** und
+hat **noch keinen Tag `v1.0.0`**.
 
-Der nächste Schritt ist **Phase 0, Folgearbeit 4 vor 3** — erst die Regeln
-festschreiben, dann den Adapter dagegen bauen:
+Der nächste Schritt ist **Phase 0, Folgearbeit 3 — der Adapter in yaft-ts**:
 
-1. **Repo `yaft-conformance` anlegen** (Aufbau siehe Phase 0 oben).
-2. **`SPEC.md` schreiben**: die normativen Regeln aus "Port-Vorgaben" (Phase 3
-   dieses Dokuments) übernehmen und als R1, R2, … durchnummerieren. Die
-   Vorlage dafür steht bereits; `src/evaluate.ts` in yaft-ts ist die
-   ausformulierte Referenz-Implementierung und deckt sich damit. Nicht
-   vergessen: die Kalenderdatums-Regel und die Schaltsekunden-Regel oben.
-3. **Fall-Dateien** `evaluation.json`, `decorator.json`, `mapping.json` plus
-   `case.schema.json`. Die Fälle in
-   `TypeScript/yaft/src/test/evaluate.spec.ts` sind schon nach diesen Regeln
-   gebaut (Grenzen, invertierte Fenster, Offsets, jedes abgelehnte Format) und
-   lassen sich weitgehend direkt in Fall-Daten übersetzen.
-4. **Adapter in yaft-ts**, `conformance.lock`, `scripts/fetch-conformance.sh`,
-   CI-Einbindung.
+1. **`yaft-conformance` auf GitHub anlegen und pushen**, danach `v1.0.0`
+   taggen. Der Release-Workflow baut daraus `cases.tar.gz` und die Prüfsumme;
+   erst dann hat `conformance.lock` etwas zum Pinnen. Das Tag muss zu `VERSION`
+   passen, sonst bricht der Workflow ab.
+2. **Adapter in yaft-ts**: `conformance.lock`, `scripts/fetch-conformance.sh`
+   (Vorlage liegt im Suite-Repo), `test/conformance/` gitignoren, Jest-Test je
+   Suite, CI-Einbindung vor den übrigen Tests.
+3. **Dabei zwei Befunde in yaft-ts mitnehmen** (unten, "Vom Spec aufgedeckt").
 
-Für Schritt 4 ist alles Nötige exportiert: `evaluate`, `parseTimestamp`,
-`Clock`, `systemClock`. Ein Fall wird zu
-`evaluate(feature, Date.parse(case.now))`.
+Ein Evaluations-Fall wird zu `evaluate(feature, Date.parse(case.now))`;
+`evaluate`, `parseTimestamp`, `Clock` und `systemClock` sind exportiert. Die
+59 Evaluations-Fälle wurden bereits gegen yaft-ts 0.0.12 laufen gelassen und
+stimmen alle.
+
+Der Adapter muss bei einem unbekannten `suite`/`target`/`toggle`/`expected`
+**hart fehlschlagen**, nicht überspringen — ein stillschweigend übersprungener
+Fall ist eine unerzwungene Regel.
+
+### Vom Spec aufgedeckt (offen in yaft-ts)
+
+Beim Formulieren der Regeln gegen den echten Code sind zwei Fehler im
+API-Provider aufgefallen. Beide sind als Regel in `SPEC.md` festgeschrieben und
+haben Fälle in `mapping.json`; yaft-ts besteht diese zwei Fälle heute **nicht**:
+
+- **R23 — Normalisierung über Vorhandensein, nicht über Wahrheitswert.**
+  `getConfig` wählt mit `feature.value || feature.Value`. Ein kleingeschriebenes
+  `"value": ""` fällt damit auf ein großgeschriebenes `"true"` durch: ein
+  ausgeschaltetes Feature liest sich als eingeschaltet. Gleiches gilt für
+  `tags: []`. Richtig ist eine Prüfung auf Vorhandensein des Feldes.
+- **R22 — die flache Einzel-Antwort wird nicht gelesen.** `getConfig` behandelt
+  nur `toggles`/`value`-Sammlungen; eine Einzel-Antwort mit kleingeschriebenen
+  Feldern fällt hinten runter. Heute latent, weil der Provider nur die
+  Gruppen-URL abruft.
 
 Offen daneben, unabhängig und jederzeit machbar:
 
@@ -220,11 +236,13 @@ Maven oder `go test` ohne Git-Handling auskommen:
 2. ✅ **Erledigt (0.0.12).** Uhr injizierbar (`Clock = () => number`, Default
    `systemClock`). Beide Feature-Provider nehmen sie als optionales
    Konstruktor-Argument, Bestandscode bleibt unverändert.
-3. Adapter schreiben, Suite per `conformance.lock` einbinden, in die CI hängen.
-4. Die normativen Regeln aus "Port-Vorgaben" (Phase 3) nach
-   `yaft-conformance/SPEC.md` übertragen und dort durchnummerieren (R1, R2, …),
-   damit die Fall-Dateien per `rule` darauf zeigen können. Phase 3 verweist
-   danach auf `SPEC.md` statt die Regeln selbst zu führen.
+3. **Offen.** Adapter schreiben, Suite per `conformance.lock` einbinden, in
+   die CI hängen. Siehe "Hier weitermachen" oben.
+4. ✅ **Erledigt (Suite 1.0.0, lokal).** Die normativen Regeln stehen als R1–R26
+   in `yaft-conformance/SPEC.md`, die Fall-Dateien zeigen per `rules` darauf.
+   Ein CI-Skript erzwingt, dass jede Regel mindestens einen Fall hat oder
+   ausdrücklich als strukturell begründet ist. Phase 3 dieses Dokuments bleibt
+   als Hintergrund stehen, normativ ist ab jetzt `SPEC.md`.
 
 Mit 1 und 2 ist yaft-ts bereit für den Adapter: `evaluate`, `parseTimestamp`,
 `Clock` und `systemClock` sind exportiert, und ein Fall aus den Fall-Dateien
@@ -252,7 +270,37 @@ Fehler steckte in der ersten Fassung der Tests.
 Schaltsekunden (`23:59:60`) erlaubt RFC 3339, `Date.parse` kann sie nicht — in
 yaft-ts werden sie deshalb ignoriert. Ports sollten das gleich handhaben.
 
-Ergebnis: Ein Tag `yaft-conformance@v1`, gegen den yaft-ts grün ist.
+### Stand der Suite (2026-09-21)
+
+Angelegt unter `yaft-conformance/` in der Workspace-Wurzel, ein Commit auf
+`main`, noch nicht auf GitHub und noch ohne Tag.
+
+**Nicht** unter `TypeScript/`: die Suite enthält keine Zeile TypeScript,
+sondern JSON-Fälle, ein Markdown-Spec, ein Python-Prüfskript und ein
+Bash-Skript. Sie ist für jeden Port gleichermaßen da. `workflows/` liegt aus
+demselben Grund auf oberster Ebene.
+
+- `SPEC.md`: 26 Regeln. R1–R2 Datenmodell, R3–R9 Auswertung, R10–R13
+  Zeitstempel (inkl. Kalender-Rollover und Schaltsekunde), R14–R19 Decorator,
+  R20–R21 Provider-Shapes, R22–R25 Mapping, R26 Backend-Abgleich.
+- 89 Fälle: 59 `evaluation`, 16 `decorator`, 14 `mapping`.
+- `schema/case.schema.json` je Suite eigene Pflichtfelder; gegen fünf bewusst
+  kaputte Dateien geprüft, alle abgelehnt.
+- `scripts/validate-cases.py` prüft Regelverweise, doppelte Namen und
+  unerzwungene Regeln; beide Fehlerfälle nachgestellt.
+- Release-Workflow baut `cases.tar.gz` reproduzierbar (Tag muss zu `VERSION`
+  passen), `scripts/fetch-conformance.sh` lädt und prüft die Summe; End-to-End
+  gegen einen lokalen Server getestet, auch der Mismatch-Pfad.
+
+Die Fälle für `decorator` und `mapping` sind keine reinen Ein-/Ausgabe-Paare —
+"der Fallback bekommt denselben Empfänger" lässt sich nicht als JSON
+ausdrücken. Sie benennen stattdessen ein Szenario und ein sprachneutrales
+Ergebnis (`original`, `fallback`, `nothing`, `resolved-nothing`,
+`empty-shell`, `decoration-error`), das jeder Adapter auf seine Sprache
+abbildet.
+
+Ergebnis: Ein Tag `yaft-conformance@v1`, gegen den yaft-ts grün ist. **Noch
+offen** — Repo pushen, taggen, Adapter bauen.
 
 ## Phase 1 – Backend härten und Zeitlogik angleichen ✅ ERLEDIGT
 
