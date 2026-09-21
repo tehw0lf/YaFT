@@ -312,8 +312,13 @@ mit `--mode='u=rwX,go=rX'`; das veröffentlichte v1.0.0 trägt bereits die
 reproduzierbare Summe, ein Re-Release war nicht nötig. Die README zeigt jetzt
 den Nachbau-Befehl.
 
-Ergebnis: Tag `yaft-conformance@v1.0.0` steht. **Offen** — Adapter in yaft-ts
-dagegen grün bekommen.
+Ergebnis: Tag `yaft-conformance@v1.0.0` steht.
+
+**Stand der Konformität von yaft-ts 0.0.12:** die 59 `evaluation`-Fälle sind
+verifiziert grün. Volle Konformität ist damit **nicht** erreicht — die
+`mapping`-Fälle `empty-value-not-replaced` (R23) und `single-toggle-lowercase`
+(R22) schlagen fehl, und die 16 `decorator`-Fälle sind mangels Adapter noch
+ungeprüft. Offen bleibt also: Adapter bauen, R22/R23 fixen, alle 89 Fälle grün.
 
 ## Phase 1 – Backend härten und Zeitlogik angleichen ✅ ERLEDIGT
 
@@ -808,4 +813,4 @@ Phase 1 ist erledigt und blockiert nichts mehr. **Phase 0 ist damit der
 kritische Pfad**: Phase 2 braucht die Matrix daraus, Phase 3 die Abnahme.
 
 Phase 3 kann für den Core-Teil (ohne ApiProvider) parallel zu Phase 2
-beginnen, sobald `yaft-conformance@v1` getaggt ist.
+beginnen; `yaft-conformance@v1.0.0` ist getaggt, die Abnahme steht also bereit.
