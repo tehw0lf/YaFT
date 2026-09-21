@@ -126,6 +126,32 @@ security patches only reach `:latest` when something is pushed.
 
 # API Interaction
 
+The full contract -- every path, parameter, status code and response schema --
+is in [`openapi.yaml`](openapi.yaml). It is validated against the real handlers
+by `openapi_test.go`, so unlike the examples below it cannot quietly fall
+behind. Generate a client from it rather than hand-writing one:
+
+```bash
+# Go -- yields a typed method per endpoint, *time.Time for the nullable
+# dates and *[]string for tags, so the null-versus-[] trap is handled
+go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest \
+  -package yaft -generate types,client openapi.yaml > client.go
+
+# TypeScript types
+npx openapi-typescript openapi.yaml -o yaft.d.ts
+
+# Java, Python, C#, ...
+npx @openapitools/openapi-generator-cli generate -i openapi.yaml -g java
+```
+
+A generated client covers the transport only. When a feature counts as enabled
+-- the boundary behaviour of `activeAt`/`disabledAt`, which timestamp formats
+are ignored -- is decided by the client itself and specified in
+[yaft-conformance](https://github.com/tehw0lf/yaft-conformance), because
+scheduled flips reach the stored `value` up to a minute late.
+
+The examples below are the same calls by hand.
+
 ## Creating new Feature Toggles
 
 `curl -d '{"Key":"myKey","Value":"true"}' -X POST "http://127.0.0.1:8080/features"`
