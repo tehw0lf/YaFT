@@ -7,21 +7,26 @@ Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 
 ## Hier weitermachen
 
-Stand 2026-09-21. Phase 1 ist fertig (Backend 0.1.6), Folgearbeiten 1, 2 und 4
-von Phase 0 sind fertig. `yaft-conformance` existiert mit `SPEC.md` (26 Regeln)
-und 89 Fällen; das Repo ist lokal committed, aber **noch nicht auf GitHub** und
-hat **noch keinen Tag `v1.0.0`**.
+Stand 2026-09-21. Phase 1 ist fertig (Backend 0.1.6), Folgearbeit 4 von Phase 0
+ist fertig und **veröffentlicht**: `github.com/tehw0lf/yaft-conformance` ist
+öffentlich, CI grün, Tag `v1.0.0` gesetzt, Release-Asset liegt bereit.
 
-Der nächste Schritt ist **Phase 0, Folgearbeit 3 — der Adapter in yaft-ts**:
+Der nächste Schritt ist **Phase 0, Folgearbeit 3 — der Adapter in yaft-ts**.
+Alles Nötige zum Pinnen existiert:
 
-1. **`yaft-conformance` auf GitHub anlegen und pushen**, danach `v1.0.0`
-   taggen. Der Release-Workflow baut daraus `cases.tar.gz` und die Prüfsumme;
-   erst dann hat `conformance.lock` etwas zum Pinnen. Das Tag muss zu `VERSION`
-   passen, sonst bricht der Workflow ab.
-2. **Adapter in yaft-ts**: `conformance.lock`, `scripts/fetch-conformance.sh`
-   (Vorlage liegt im Suite-Repo), `test/conformance/` gitignoren, Jest-Test je
-   Suite, CI-Einbindung vor den übrigen Tests.
+```
+version=v1.0.0
+sha256=33a6bf14d709ed6395df5f31dcd6fc5e5e626a2ee5be3903ef7360798ce15845
+```
+
+1. **`conformance.lock`** mit obigen Werten in yaft-ts anlegen,
+   `scripts/fetch-conformance.sh` aus dem Suite-Repo kopieren,
+   `test/conformance/` gitignoren. Der Fetch wurde gegen das echte Release
+   durchgespielt und funktioniert.
+2. **Jest-Test je Suite**, CI-Einbindung vor den übrigen Tests. Ein
+   Evaluations-Fall wird zu `evaluate(feature, Date.parse(case.now))`.
 3. **Dabei zwei Befunde in yaft-ts mitnehmen** (unten, "Vom Spec aufgedeckt").
+   Deren zwei `mapping`-Fälle sind heute rot — das ist der Zweck der Übung.
 
 Ein Evaluations-Fall wird zu `evaluate(feature, Date.parse(case.now))`;
 `evaluate`, `parseTimestamp`, `Clock` und `systemClock` sind exportiert. Die
@@ -272,8 +277,8 @@ yaft-ts werden sie deshalb ignoriert. Ports sollten das gleich handhaben.
 
 ### Stand der Suite (2026-09-21)
 
-Angelegt unter `yaft-conformance/` in der Workspace-Wurzel, ein Commit auf
-`main`, noch nicht auf GitHub und noch ohne Tag.
+Angelegt unter `yaft-conformance/` in der Workspace-Wurzel, öffentlich unter
+`github.com/tehw0lf/yaft-conformance`, Tag `v1.0.0`.
 
 **Nicht** unter `TypeScript/`: die Suite enthält keine Zeile TypeScript,
 sondern JSON-Fälle, ein Markdown-Spec, ein Python-Prüfskript und ein
@@ -299,8 +304,16 @@ Ergebnis (`original`, `fallback`, `nothing`, `resolved-nothing`,
 `empty-shell`, `decoration-error`), das jeder Adapter auf seine Sprache
 abbildet.
 
-Ergebnis: Ein Tag `yaft-conformance@v1`, gegen den yaft-ts grün ist. **Noch
-offen** — Repo pushen, taggen, Adapter bauen.
+Beim Verifizieren des Releases fiel noch ein echter Fehler auf: das Tarball
+zeichnete die Rechte-Bits des Checkouts auf, also ergab derselbe Baum in der CI
+(0644) und lokal bei restriktiver umask (0640) **verschiedene Prüfsummen** bei
+identischem Inhalt. Das entwertet die Prüfsumme, die ein Port pinnt. Behoben
+mit `--mode='u=rwX,go=rX'`; das veröffentlichte v1.0.0 trägt bereits die
+reproduzierbare Summe, ein Re-Release war nicht nötig. Die README zeigt jetzt
+den Nachbau-Befehl.
+
+Ergebnis: Tag `yaft-conformance@v1.0.0` steht. **Offen** — Adapter in yaft-ts
+dagegen grün bekommen.
 
 ## Phase 1 – Backend härten und Zeitlogik angleichen ✅ ERLEDIGT
 
