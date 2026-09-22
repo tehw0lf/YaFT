@@ -7,84 +7,59 @@ Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 
 ## Hier weitermachen
 
-Stand 2026-09-22. **Phase 0 ist inhaltlich durch.** `yaft-conformance` ist
-öffentlich und auf `v1.1.0` getaggt, und yaft-ts besteht als erster Port die
-**komplette Suite: 90 von 90 Fällen**.
+Stand 2026-09-22. **Phase 0 ist abgeschlossen, Phase 2 fast.** Alles ist
+gemergt und released, keine offenen PRs.
 
-Offen ist nur noch das Zusammenführen:
+| Repo | Version | Stand |
+|---|---|---|
+| `Go/YaFT` | 0.3.0 | Images publiziert, OpenAPI-Spec, deployfähig |
+| `yaft-conformance` | 1.1.0 | 27 Regeln, 90 Fälle |
+| `TypeScript/yaft` | 0.0.16 | besteht alle 90 Fälle; **erstmals importierbar publiziert** |
+| `TypeScript/yaft-playground` | 0.1.0 | CI grün inkl. 8 E2E gegen echtes Backend |
+| `Docker/tehwolf.de/yaft` | – | Compose-Stack liegt bereit |
 
-1. **PR #21 mergen** (dieser hier): Conformance-Suite dokumentiert,
-   Casing-Fix im Backend, Version 0.2.0.
-2. **PR #22 mergen**: OpenAPI-Spec plus spec-validierende Tests, Version
-   0.2.1. Er zielt auf den Branch von #21, stellt sich nach dessen Merge
-   automatisch auf `main` um und löst dabei einen frischen GitGuardian-Scan
-   aus (der aktuelle rote Check ist vom 21.09. und kennt den geschlossenen
-   Incident nicht).
-3. **PR in yaft-ts mergen**: Adapter plus drei Fixes, Version 0.0.13.
+**Nächster Schritt: das Deployment auf der OCI-Instanz.** Der CNAME für
+`yaft.tehwolf.de` ist gesetzt, die Images sind multi-arch, der
+Playground-Downstream-Check ist grün. Zu tun auf der Instanz:
 
-Danach ist **Phase 2** (Playground und Deployment `yaft.tehwolf.de`) der
-nächste große Block, siehe unten.
+1. `Docker/tehwolf.de/yaft/.env` anlegen (gitignored):
+   ```
+   POSTGRES_USER=yaft
+   POSTGRES_PASSWORD=<openssl rand -hex 24>
+   POSTGRES_DB=yaft
+   ```
+2. `docker compose -f yaft/docker-compose.yml up -d`
+3. Retention scharfschalten (bewusst nicht vorgeplant):
+   ```
+   docker compose -f yaft/docker-compose.yml exec yaft-db psql -U yaft -d yaft \
+     -c "SELECT cron.schedule('0 3 * * *', \$\$ SELECT cleanup_stale_feature_toggles(); \$\$);"
+   ```
+4. Prüfen: `curl https://yaft.tehwolf.de/features/nothing` → `404` mit
+   JSON-Fehler; die DB darf **keinen** Port veröffentlichen.
 
-### Phase 0, Folgearbeit 3 ✅ erledigt (yaft-ts 0.0.13)
+**Offen und nicht im Code lösbar:** die GHCR-Pakete sind privat. Die
+Playground-CI baut die Images deshalb aus dem öffentlichen YaFT-Repo statt sie
+zu ziehen. Auf `public` umstellen wäre einfacher — dann greift wieder der
+normale Pull-Pfad.
 
-Adapter liegt in `src/test/conformance-adapter/`, Suite gepinnt über
-`conformance.lock` (`v1.1.0` + Prüfsumme). Der Fetch hängt an `pretest`, läuft
-also bei jedem `npm test` und damit auch in der CI, ohne dass die
-Workflow-Datei angefasst werden musste — kein separater Schritt, den jemand
-vergessen kann, und kein grüner Lauf gegen veraltete Fälle.
+Danach bleibt **Phase 3** (Ports: yaft-java, yaft-go) als nächster großer
+Block.
 
-Der Adapter scheitert hart bei unbekanntem `target`/`toggle`/`expected`, statt
-zu überspringen. Beide Wächter durch absichtliches Kaputtmachen geprüft.
+### Was Phase 2 unterwegs gefunden hat
 
-**Drei Fehler hat die Suite gefunden** — der Zweck der Übung:
+Das Ausprobieren statt Lesen hat sich gelohnt — sechs echte Fehler:
 
-- **R23** und **R22** wie unten beschrieben, behoben in einem neuen
-  `src/mapping.ts`. Die Mapping-Regeln liegen jetzt neben den
-  Auswertungsregeln im Core, nicht im Provider: genau die Doppelung hatte die
-  Fehler überhaupt erst ermöglicht. `normaliseCollection` und
-  `normaliseFeature` sind exportiert.
-- **R18 — neu, nicht aus dem früheren Review:** eine ausgeschaltete
-  `async`-Methode lieferte `undefined` statt eines aufgelösten Promise, womit
-  jedes `await` beim Aufrufer bricht. Die Leer-Hülle für Klassen machte diese
-  Unterscheidung bereits, der Methoden-Zweig nicht.
-
-### Vom Spec aufgedeckt (✅ behoben in yaft-ts 0.0.13)
-
-Beim Formulieren der Regeln gegen den echten Code sind zwei Fehler im
-API-Provider aufgefallen. Beide sind als Regel in `SPEC.md` festgeschrieben und
-haben Fälle in `mapping.json`. yaft-ts bestand sie zunächst **nicht**; mit dem
-Adapter (0.0.13) sind beide behoben:
-
-- **R23 — Normalisierung über Vorhandensein, nicht über Wahrheitswert.**
-  `getConfig` wählt mit `feature.value || feature.Value`. Ein kleingeschriebenes
-  `"value": ""` fällt damit auf ein großgeschriebenes `"true"` durch: ein
-  ausgeschaltetes Feature liest sich als eingeschaltet. Gleiches gilt für
-  `tags: []`. Richtig ist eine Prüfung auf Vorhandensein des Feldes.
-- **R22 — die flache Einzel-Antwort wird nicht gelesen.** `getConfig` behandelt
-  nur `toggles`/`value`-Sammlungen; eine Einzel-Antwort mit kleingeschriebenen
-  Feldern fällt hinten runter. Heute latent, weil der Provider nur die
-  Gruppen-URL abruft.
-
-**Die Ursache ist im Backend behoben (0.2.0).** `FeatureToggleDTO` hat jetzt
-JSON-Tags, und die sechs handgeschriebenen `gin.H`-Literale sind durch einen
-`toDTO`-Helfer ersetzt — es gibt nur noch eine Definition der Antwortform statt
-sieben auseinanderlaufender Kopien. Beide Hüllen liefern kleingeschrieben.
-
-Die Regeln bleiben trotzdem: ein Port weiß nicht, gegen welche Backend-Version
-er spricht, und Instanzen vor 0.2.0 bleiben im Umlauf. In der Suite steht das
-jetzt als **R22a** (kleingeschrieben ist die Regel, großgeschrieben ist Legacy,
-das ein Port weiterhin lesen muss), Suite-Version 1.1.0. Derselbe
-Truthiness-Fehler steckt übrigens auch in **yaft-admin**
-(`yaft-provider.service.ts`, sechs Stellen) — nach dem Backend-Fix greift die
-Falle dort nicht mehr, der Code bleibt aber fragil.
-
-Offen daneben, unabhängig und jederzeit machbar:
-
-- **Phase 2, Deployment `yaft.tehwolf.de`**: Compose-Datei nach Traefik-Muster,
-  DNS-Eintrag, Retention-Job scharfschalten (`cron.schedule`, siehe README des
-  Backends) und bei einer bereits laufenden DB die alten
-  `CURRENT_DATE`-Cronjobs ersetzen — `db/init.sql` läuft nur bei leerem
-  Datenverzeichnis.
+- `init.sql` fehlte im `yaft-db`-Image; eine gezogene DB hatte keine
+  Cronjobs und **sah dabei gesund aus**, weil AutoMigrate die Tabelle anlegt.
+- Volume auf `/var/lib/postgresql/data` statt `/var/lib/postgresql` —
+  Postgres 18 startet damit nicht.
+- `cron.database_name` wurde zur Buildzeit expandiert, stand also fest auf
+  `postgres`; mit dem `init.sql`-Fix führte das zu `Exited (3)`.
+- Das `sed` im Entrypoint brach bei einem DB-Namen wie `a|b`.
+- `COPY` übernahm die umask des Build-Hosts, `init.sql` wurde unlesbar.
+- **`@tehw0lf/yaft` war nie importierbar** — kein `main`, kein `types`, und
+  publiziert wurde rohes `src/` statt `dist/yaft/`. Deshalb hat `yaft-admin`
+  die Provider nachgebaut, statt die Library zu nutzen.
 
 ## Ausgangslage
 
