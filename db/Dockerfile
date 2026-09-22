@@ -60,7 +60,11 @@ RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/p
 #
 # Postgres runs this once, when the data directory is empty. An existing
 # deployment still needs the manual steps in the README.
-COPY db/init.sql /docker-entrypoint-initdb.d/init.sql
+# --chmod=0644 explicitly: COPY preserves the build host's permissions, so a
+# restrictive umask produces a file postgres cannot read, and the container
+# exits with "psql: error: ...init.sql: Permission denied". The entrypoint
+# script next to it already sets its mode for the same reason.
+COPY --chmod=0644 db/init.sql /docker-entrypoint-initdb.d/init.sql
 
 # 0755 explicitly: COPY preserves the build host's permissions, and a
 # restrictive umask there produced 0751, which is unreadable for the postgres
