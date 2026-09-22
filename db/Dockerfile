@@ -39,9 +39,16 @@ COPY --from=builder /usr/local/lib/postgresql/pg_cron.so /usr/local/lib/postgres
 COPY --from=builder /usr/local/share/postgresql/extension/pg_cron--*.sql /usr/local/share/postgresql/extension/
 COPY --from=builder /usr/local/share/postgresql/extension/pg_cron.control /usr/local/share/postgresql/extension/
 
-# Update shared_preload_libraries in default postgresql.conf
+# Update shared_preload_libraries in default postgresql.conf.
+#
+# cron.database_name gets a placeholder that the entrypoint rewrites from
+# POSTGRES_DB at startup. It cannot be settled here: ${POSTGRES_DB} expands at
+# build time, so the image would carry whatever the build environment had --
+# 'postgres' in practice -- and pg_cron refuses CREATE EXTENSION from any other
+# database. The container then exits during init rather than merely losing its
+# scheduled flips.
 RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample && \
-    echo "cron.database_name = '${POSTGRES_DB:-postgres}'" >> /usr/local/share/postgresql/postgresql.conf.sample
+    echo "cron.database_name = 'postgres'" >> /usr/local/share/postgresql/postgresql.conf.sample
 
 # Ship the schema with the image.
 #
@@ -55,3 +62,8 @@ RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/p
 # Postgres runs this once, when the data directory is empty. An existing
 # deployment still needs the manual steps in the README.
 COPY db/init.sql /docker-entrypoint-initdb.d/init.sql
+
+COPY db/entrypoint.sh /usr/local/bin/yaft-entrypoint.sh
+RUN chmod +x /usr/local/bin/yaft-entrypoint.sh
+ENTRYPOINT ["yaft-entrypoint.sh"]
+CMD ["postgres"]

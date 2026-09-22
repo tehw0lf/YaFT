@@ -86,6 +86,14 @@ Worth knowing, because the failure is quiet: GORM's AutoMigrate creates the
 table on first connect, so a database started without `init.sql` looks healthy
 and serves requests. Only the time-based flipping is missing.
 
+`cron.database_name` is set from `POSTGRES_DB` by the image's entrypoint. It
+cannot be baked in, because pg_cron reads job descriptions from exactly one
+database named at server start and `CREATE EXTENSION pg_cron` refuses to run
+anywhere else -- a fixed value would make `init.sql` fail and the container
+exit for any deployment using a different database name. So
+`docker run -e POSTGRES_DB=anything` works without the caller needing to pass
+`-c cron.database_name=...`.
+
 ## Upgrading an existing database
 
 `db/init.sql` only runs when the data directory is empty, so an existing
