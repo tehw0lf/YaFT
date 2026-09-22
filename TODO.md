@@ -12,7 +12,7 @@ gemergt und released, keine offenen PRs.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.2.9 | Images publiziert, OpenAPI-Spec, deployfähig |
+| `Go/YaFT` | 0.3.0 | Images publiziert, OpenAPI-Spec, deployfähig |
 | `yaft-conformance` | 1.1.0 | 27 Regeln, 90 Fälle |
 | `TypeScript/yaft` | 0.0.16 | besteht alle 90 Fälle; **erstmals importierbar publiziert** |
 | `TypeScript/yaft-playground` | 0.1.0 | CI grün inkl. 8 E2E gegen echtes Backend |
@@ -31,7 +31,7 @@ Playground-Downstream-Check ist grün. Zu tun auf der Instanz:
 2. `docker compose -f yaft/docker-compose.yml up -d`
 3. Retention scharfschalten (bewusst nicht vorgeplant):
    ```
-   docker compose exec yaft-db psql -U yaft -d yaft \
+   docker compose -f yaft/docker-compose.yml exec yaft-db psql -U yaft -d yaft \
      -c "SELECT cron.schedule('0 3 * * *', \$\$ SELECT cleanup_stale_feature_toggles(); \$\$);"
    ```
 4. Prüfen: `curl https://yaft.tehwolf.de/features/nothing` → `404` mit
