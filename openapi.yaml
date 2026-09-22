@@ -1,0 +1,556 @@
+# The HTTP contract of the YaFT backend.
+#
+# This file describes the wire format only: paths, parameters, status codes and
+# response bodies. It says nothing about when a feature counts as enabled --
+# the boundary behaviour of activeAt/disabledAt, which timestamp formats are
+# ignored, and when a decorator re-evaluates all live in
+# https://github.com/tehw0lf/yaft-conformance, because a client evaluates those
+# rules itself rather than asking the server.
+#
+# A client library needs both: generate the transport from here, then implement
+# the evaluation rules from the spec there.
+#
+# Kept honest by openapi_test.go, which validates real handler responses
+# against this file. The README examples drifted twice before that existed --
+# they still showed an `ID` field the response DTO had dropped -- so nothing
+# here is written from memory.
+openapi: 3.1.0
+
+info:
+  title: YaFT
+  version: 0.2.2
+  summary: Yet another Feature Toggle - a small feature toggle API.
+  description: |
+    Feature toggles are grouped by a UUID prefix: a key has the form
+    `<uuid>|<name>`. Creating a toggle without a prefix starts a new group; the
+    server generates the prefix and a secret, and that response is the only one
+    that ever returns the secret.
+
+    Every write needs that secret **in the URL path**, not in an
+    `Authorization` header. Secrets are therefore constrained to characters
+    that survive being put in a path.
+  license:
+    name: MIT
+    url: https://github.com/tehw0lf/YaFT/blob/main/LICENSE
+
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local development stack (docker-compose-local.yml)
+
+tags:
+  - name: features
+    description: Reading and writing feature toggles.
+  - name: secrets
+    description: Rotating the shared secret of a group.
+
+paths:
+  /features:
+    post:
+      tags: [features]
+      summary: Create a toggle
+      description: |
+        Two modes, decided by whether `Key` already carries a UUID prefix:
+
+        - **without a prefix** the server generates one and a secret, and
+          returns the secret. This is the only response that ever contains it,
+          and the only unauthenticated write in the API -- it has to be, since
+          this call is what issues the secret.
+        - **with a prefix** the group already exists, so `Secret` must be sent
+          in the body and must match, otherwise `401`.
+
+        Field names in the request are matched case-insensitively, so `Key` and
+        `key` both bind. The examples use the capitalised form the README has
+        always shown.
+      operationId: createFeature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewFeatureToggle'
+            examples:
+              newGroup:
+                summary: New group - server generates prefix and secret
+                value:
+                  Key: myKey
+                  Value: "true"
+              existingGroup:
+                summary: Existing group - secret required
+                value:
+                  Key: 896ea308-382f-46b0-bc59-d93a28013633|myOtherKey
+                  Value: "true"
+                  Secret: example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff
+      responses:
+        '201':
+          description: |
+            Created. The body carries `secret` only when this call started a
+            new group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedFeatureToggle'
+        '400':
+          description: |
+            Malformed JSON, a `Value` other than `"true"` or `"false"`, or a
+            `Key` over the length limit.
+
+            The limit is 256 characters including the UUID prefix. A key sent
+            without a prefix is checked against what is left after the prefix
+            is added, so the reported maximum is lower in that case.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidValue:
+                  value:
+                    error: 'Invalid value, expected "true" or "false"'
+                keyTooLong:
+                  value:
+                    error: Key too long, maximum is 219 characters
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /features/activate/{key}/{secret}:
+    put:
+      tags: [features]
+      summary: Turn a toggle on
+      description: Sets `value` to `"true"`. Does not touch `activeAt`.
+      operationId: activateFeature
+      parameters:
+        - $ref: '#/components/parameters/Key'
+        - $ref: '#/components/parameters/Secret'
+      responses:
+        '200':
+          $ref: '#/components/responses/Toggle'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /features/deactivate/{key}/{secret}:
+    put:
+      tags: [features]
+      summary: Turn a toggle off
+      description: Sets `value` to `"false"`. Does not touch `disabledAt`.
+      operationId: deactivateFeature
+      parameters:
+        - $ref: '#/components/parameters/Key'
+        - $ref: '#/components/parameters/Secret'
+      responses:
+        '200':
+          $ref: '#/components/responses/Toggle'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /features/activateAt/{key}/{date}/{secret}:
+    put:
+      tags: [features]
+      summary: Schedule a toggle to turn on
+      description: |
+        Sets `activeAt`. A job inside PostgreSQL flips `value` when the time
+        arrives, ticking about once a minute -- so a client that evaluates
+        `activeAt` itself is briefly ahead of the stored `value`. That is
+        intended; see R26 in yaft-conformance.
+      operationId: activateFeatureAt
+      parameters:
+        - $ref: '#/components/parameters/Key'
+        - $ref: '#/components/parameters/Date'
+        - $ref: '#/components/parameters/Secret'
+      responses:
+        '200':
+          $ref: '#/components/responses/Toggle'
+        '400':
+          $ref: '#/components/responses/InvalidDate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /features/deactivateAt/{key}/{date}/{secret}:
+    put:
+      tags: [features]
+      summary: Schedule a toggle to turn off
+      description: Sets `disabledAt`. See `activateAt` for the flip timing.
+      operationId: deactivateFeatureAt
+      parameters:
+        - $ref: '#/components/parameters/Key'
+        - $ref: '#/components/parameters/Date'
+        - $ref: '#/components/parameters/Secret'
+      responses:
+        '200':
+          $ref: '#/components/responses/Toggle'
+        '400':
+          $ref: '#/components/responses/InvalidDate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /features/{key}:
+    get:
+      tags: [features]
+      summary: Read a single toggle, or every toggle of a group
+      description: |
+        The response shape depends on what `key` matches:
+
+        - an exact key returns that toggle as a flat object;
+        - a bare UUID returns every toggle of that group under `toggles`.
+
+        Both envelopes use the same lowercase field names. Up to 0.1.6 the
+        group form spelled them `Key`, `Value`, `ActiveAt`, `DisabledAt` and
+        `Tags`, because the response DTO carried no JSON tags. A client that
+        must also talk to older instances should accept either spelling and
+        normalise to lowercase; see R22a in yaft-conformance.
+
+        No authentication: reading a toggle needs no secret.
+      operationId: getFeature
+      parameters:
+        - $ref: '#/components/parameters/Key'
+        - name: tags
+          in: query
+          required: false
+          description: |
+            Comma-separated tags, ANDed together. Only applies to the group
+            form; a single toggle is returned regardless of its tags.
+          schema:
+            type: string
+          example: beta,internal
+      responses:
+        '200':
+          description: The toggle, or the group.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FeatureToggle'
+                  - $ref: '#/components/schemas/FeatureToggleCollection'
+              examples:
+                single:
+                  summary: An exact key
+                  value:
+                    key: 896ea308-382f-46b0-bc59-d93a28013633|myKey
+                    value: "true"
+                    activeAt: null
+                    disabledAt: null
+                    tags: null
+                group:
+                  summary: A bare UUID
+                  value:
+                    toggles:
+                      - key: 896ea308-382f-46b0-bc59-d93a28013633|myKey
+                        value: "true"
+                        activeAt: null
+                        disabledAt: null
+                        tags: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /features/{key}/{secret}:
+    delete:
+      tags: [features]
+      summary: Delete a toggle
+      operationId: deleteFeature
+      parameters:
+        - $ref: '#/components/parameters/Key'
+        - $ref: '#/components/parameters/Secret'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                message: Feature toggle deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /collectionHash/{uuid}:
+    get:
+      tags: [features]
+      summary: Fingerprint of a group
+      description: |
+        A SHA-256 over every toggle in the group. A client polls this and only
+        refetches the group when it changed, instead of pulling all toggles on
+        every check.
+
+        No authentication.
+      operationId: getCollectionHash
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: The group's UUID, without a `|name` suffix.
+          schema:
+            type: string
+            format: uuid
+          example: 896ea308-382f-46b0-bc59-d93a28013633
+      responses:
+        '200':
+          description: The hash.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collectionHash]
+                properties:
+                  collectionHash:
+                    type: string
+                    description: Hex-encoded SHA-256.
+                    example: dce01876b3f0c843fb2c1e5efe54bf807dc991eefc660d112306b49f6e2335c6
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /secret/update/{uuid}/{oldsecret}/{newsecret}:
+    put:
+      tags: [secrets]
+      summary: Rotate a group's secret
+      description: |
+        Replaces the secret on every toggle of the group, since the secret is
+        shared across the group.
+      operationId: updateSecret
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 896ea308-382f-46b0-bc59-d93a28013633
+        - name: oldsecret
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: newsecret
+          in: path
+          required: true
+          description: |
+            Must be usable inside a URL path, because that is where every
+            subsequent write will carry it. A value that is not gets `406`.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rotated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [key]
+                properties:
+                  key:
+                    type: string
+                    description: The group UUID whose secret was replaced.
+              example:
+                key: 896ea308-382f-46b0-bc59-d93a28013633
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '406':
+          description: The new secret cannot be used in a URL path.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: New secret is not URL parseable, aborting operation
+        '404':
+          description: The update failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  parameters:
+    Key:
+      name: key
+      in: path
+      required: true
+      description: |
+        A full key (`<uuid>|<name>`), or a bare UUID where an endpoint accepts
+        a group. The `|` must be percent-encoded by a conforming client, though
+        the server also accepts it raw.
+      schema:
+        type: string
+        maxLength: 256
+      example: 896ea308-382f-46b0-bc59-d93a28013633|myKey
+    Secret:
+      name: secret
+      in: path
+      required: true
+      description: |
+        The group's shared secret, as returned when it was created.
+
+        A real one is three concatenated UUIDs. The example here spells out
+        `example` in each of them on purpose: a realistic-looking value trips
+        secret scanners on every file that carries it, and teaches readers to
+        wave such warnings away.
+      schema:
+        type: string
+      example: example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff
+    Date:
+      name: date
+      in: path
+      required: true
+      description: |
+        RFC 3339 with an offset. Anything else is rejected with `400`, rather
+        than guessed at, because languages disagree about what a bare date or
+        an offset-less timestamp means.
+      schema:
+        type: string
+        format: date-time
+      example: '2026-10-10T15:00:00Z'
+
+  schemas:
+    FeatureToggle:
+      type: object
+      required: [key, value, activeAt, disabledAt, tags]
+      properties:
+        key:
+          type: string
+          description: '`<uuid>|<name>`.'
+          example: 896ea308-382f-46b0-bc59-d93a28013633|myKey
+        value:
+          type: string
+          enum: ["true", "false"]
+          description: |
+            A string, not a boolean -- that is how it is stored. A client
+            treats only the exact string `"true"` as on.
+          example: "true"
+        activeAt:
+          type: [string, 'null']
+          format: date-time
+          description: RFC 3339 with offset, or `null` when unset.
+        disabledAt:
+          type: [string, 'null']
+          format: date-time
+          description: RFC 3339 with offset, or `null` when unset.
+        tags:
+          type: [array, 'null']
+          items:
+            type: string
+          description: |
+            `null` rather than `[]` when empty, so a client must handle both.
+
+    CreatedFeatureToggle:
+      description: |
+        The created toggle. `secret` is present only when this call started a
+        new group; adding to an existing group returns the toggle alone.
+      allOf:
+        - $ref: '#/components/schemas/FeatureToggle'
+        - type: object
+          properties:
+            secret:
+              type: string
+              description: |
+                Returned only when this call created a new group. It is not
+                retrievable afterwards.
+
+    FeatureToggleCollection:
+      type: object
+      required: [toggles]
+      properties:
+        toggles:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureToggle'
+
+    NewFeatureToggle:
+      type: object
+      required: [Key, Value]
+      properties:
+        Key:
+          type: string
+          maxLength: 256
+          description: |
+            With a `<uuid>|` prefix to add to an existing group, without one to
+            start a new group.
+        Value:
+          type: string
+          enum: ["true", "false"]
+        Secret:
+          type: string
+          description: Required when `Key` carries a UUID prefix.
+        ActiveAt:
+          type: [string, 'null']
+          format: date-time
+        DisabledAt:
+          type: [string, 'null']
+          format: date-time
+        Tags:
+          type: [array, 'null']
+          items:
+            type: string
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+  responses:
+    Toggle:
+      description: The toggle after the change.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FeatureToggle'
+    NotFound:
+      description: No such toggle or group.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Feature not found
+    Unauthorized:
+      description: |
+        The secret does not match. Checked before the toggle is looked up, so a
+        wrong secret gets `401` even for a key that does not exist -- the API
+        does not reveal which keys are taken.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Invalid secret
+    InvalidDate:
+      description: The date is not RFC 3339 with an offset.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Invalid date, expected RFC 3339 with offset
+    ServerError:
+      description: The write failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

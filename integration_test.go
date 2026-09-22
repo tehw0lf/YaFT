@@ -261,3 +261,26 @@ func TestIntegrationSchemaMatchesModel(t *testing.T) {
 	assert.False(t, stored.CreatedAt.IsZero(), "GORM must populate created_at")
 	assert.False(t, stored.UpdatedAt.IsZero(), "GORM must populate updated_at")
 }
+
+// TestIntegrationOpenAPICollectionHash validates the 200 branch of
+// /collectionHash against openapi.yaml.
+//
+// The SQLite suite can only reach the 404 branch, because the hash is built
+// with PostgreSQL-only SQL. That leaves the success body -- the one a client
+// actually parses -- unchecked against the spec unless it is done here.
+func TestIntegrationOpenAPICollectionHash(t *testing.T) {
+	testDB := setupIntegrationDB(t)
+	router := integrationRouter()
+
+	testUUID := uuid.New().String()
+	require.NoError(t, testDB.Create(&FeatureToggle{
+		Key: testUUID + "|feature1", Value: "true", Secret: "s",
+	}).Error)
+
+	req := httptest.NewRequest(http.MethodGet, specServer+"/collectionHash/"+testUUID, nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	validateAgainstSpec(t, req, rec)
+}

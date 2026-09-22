@@ -126,6 +126,32 @@ security patches only reach `:latest` when something is pushed.
 
 # API Interaction
 
+The full contract -- every path, parameter, status code and response schema --
+is in [`openapi.yaml`](openapi.yaml). It is validated against the real handlers
+by `openapi_test.go`, so unlike the examples below it cannot quietly fall
+behind. Generate a client from it rather than hand-writing one:
+
+```bash
+# Go -- yields a typed method per endpoint, *time.Time for the nullable
+# dates and *[]string for tags, so the null-versus-[] trap is handled
+go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest \
+  -package yaft -generate types,client openapi.yaml > client.go
+
+# TypeScript types
+npx openapi-typescript openapi.yaml -o yaft.d.ts
+
+# Java, Python, C#, ...
+npx @openapitools/openapi-generator-cli generate -i openapi.yaml -g java
+```
+
+A generated client covers the transport only. When a feature counts as enabled
+-- the boundary behaviour of `activeAt`/`disabledAt`, which timestamp formats
+are ignored -- is decided by the client itself and specified in
+[yaft-conformance](https://github.com/tehw0lf/yaft-conformance), because
+scheduled flips reach the stored `value` up to a minute late.
+
+The examples below are the same calls by hand.
+
 ## Creating new Feature Toggles
 
 `curl -d '{"Key":"myKey","Value":"true"}' -X POST "http://127.0.0.1:8080/features"`
@@ -133,7 +159,7 @@ security patches only reach `:latest` when something is pushed.
 ### Responses
 
 successful response:
-`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null,"secret":"156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"}`
+`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null,"secret":"example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"}`
 
 error response:
 `{"error":"Failed to create feature toggle"}`
@@ -159,7 +185,7 @@ Existing rows are not affected by either rule.
 
 ## Creating new Feature Toggles with existing UUID
 
-`curl -d '{"Key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","Value":"true","Secret":"156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"}' -X POST "http://127.0.0.1:8080/features"`
+`curl -d '{"Key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","Value":"true","Secret":"example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"}' -X POST "http://127.0.0.1:8080/features"`
 
 ### Responses
 
@@ -174,7 +200,7 @@ error response if secret is correct but key exists:
 
 ## Deleting a specific Feature Toggle
 
-`curl -X DELETE "http://127.0.0.1:8080/features/896ea308-382f-46b0-bc59-d93a28013633|myKey/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X DELETE "http://127.0.0.1:8080/features/896ea308-382f-46b0-bc59-d93a28013633|myKey/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -189,7 +215,7 @@ error response if secret is correct but feature was not found:
 
 ## Activate a Feature Toggle
 
-`curl -X PUT "http://127.0.0.1:8080/features/activate/896ea308-382f-46b0-bc59-d93a28013633|myKey/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/activate/896ea308-382f-46b0-bc59-d93a28013633|myKey/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -204,7 +230,7 @@ error response if secret is correct but feature was not found:
 
 ## Activate a Feature Toggle at a certain date
 
-`curl -X PUT "http://127.0.0.1:8080/features/activateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/activateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -241,7 +267,7 @@ delay.
 
 ## Deactivate a Feature Toggle
 
-`curl -X PUT "http://127.0.0.1:8080/features/deactivate/896ea308-382f-46b0-bc59-d93a28013633|myKey/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/deactivate/896ea308-382f-46b0-bc59-d93a28013633|myKey/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -256,7 +282,7 @@ error response if secret is correct but feature was not found:
 
 ## Deactivate a Feature Toggle at a certain date
 
-`curl -X PUT "http://127.0.0.1:8080/features/deactivateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"`
+`curl -X PUT "http://127.0.0.1:8080/features/deactivateAt/896ea308-382f-46b0-bc59-d93a28013633|myKey/2026-10-10T15:00:00Z/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff"`
 
 ### Responses
 
@@ -313,7 +339,7 @@ error response:
 
 ## Updating a secret for a given UUID
 
-`curl -X PUT "http://127.0.0.1:8080/secret/update/896ea308-382f-46b0-bc59-d93a28013633/156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9/mynewsecret"`
+`curl -X PUT "http://127.0.0.1:8080/secret/update/896ea308-382f-46b0-bc59-d93a28013633/example0-0000-4000-8000-0000000000ffexample1-0000-4000-8000-0000000000ffexample2-0000-4000-8000-0000000000ff/mynewsecret"`
 
 ### Responses
 
