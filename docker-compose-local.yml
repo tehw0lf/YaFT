@@ -2,7 +2,12 @@ version: "3.8"
 
 services:
   db:
-    build: db
+    build:
+      # Root context, matching the CI build: db/Dockerfile copies db/init.sql,
+      # so a context of db/ alone cannot see it. Building what CI publishes is
+      # the point -- otherwise the local image and the released one differ.
+      context: .
+      dockerfile: db/Dockerfile
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -10,7 +15,10 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      # Mounted at /var/lib/postgresql, not .../data: Postgres 18 keeps PGDATA
+      # in a version subdirectory and refuses to start when it finds a volume
+      # at the old path.
+      - db_data:/var/lib/postgresql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     security_opt:
       - no-new-privileges:true

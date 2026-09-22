@@ -25,7 +25,12 @@
 
 services:
   testdb:
-    build: db
+    build:
+      # Root context, matching the CI build: db/Dockerfile copies db/init.sql,
+      # so a context of db/ alone cannot see it. Building what CI publishes is
+      # the point -- otherwise the local image and the released one differ.
+      context: .
+      dockerfile: db/Dockerfile
     environment:
       POSTGRES_USER: yaft
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD to a throwaway value, or use scripts/integration-tests.sh}

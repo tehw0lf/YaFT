@@ -12,7 +12,10 @@ services:
       # anywhere rather than only next to a checkout. The local and test
       # compose files still mount it, so an edit takes effect without a
       # rebuild.
-      - db_data:/var/lib/postgresql/data
+      # Mounted at /var/lib/postgresql, not .../data: Postgres 18 keeps PGDATA
+      # in a version subdirectory and refuses to start when it finds a volume
+      # at the old path.
+      - db_data:/var/lib/postgresql
     read_only: true
     security_opt:
       - no-new-privileges:true
