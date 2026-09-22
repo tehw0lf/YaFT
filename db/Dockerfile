@@ -68,9 +68,6 @@ COPY db/init.sql /docker-entrypoint-initdb.d/init.sql
 # user the stock entrypoint switches to.
 COPY --chmod=0755 db/entrypoint.sh /usr/local/bin/yaft-entrypoint.sh
 
-# nosemgrep: dockerfile.security.missing-user.missing-user
-# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
-#
 # No USER directive, deliberately, and this is the upstream postgres image's
 # design rather than an oversight. The entrypoint has to start as root to
 # initialise the data directory and fix its ownership; it then hands the
@@ -78,5 +75,10 @@ COPY --chmod=0755 db/entrypoint.sh /usr/local/bin/yaft-entrypoint.sh
 # run as root. Adding USER postgres here breaks initialisation instead of
 # hardening anything -- verified: the container exits during startup, since
 # the configuration file it must rewrite is root-owned.
+#
+# The suppressions have to sit directly above the flagged lines, so the
+# reasoning is above rather than between them.
+# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
 ENTRYPOINT ["yaft-entrypoint.sh"]
+# nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["postgres"]
