@@ -76,6 +76,16 @@ Pass a different window if 30 days does not fit:
 SELECT cleanup_stale_feature_toggles(INTERVAL '90 days');
 ```
 
+The image ships `init.sql`, so a deployment that only pulls
+`ghcr.io/tehw0lf/yaft-db` gets the schema, the pg_cron extension and the
+scheduled flips without needing a checkout of this repository. The local and
+test compose files still bind mount the file so an edit takes effect without a
+rebuild.
+
+Worth knowing, because the failure is quiet: GORM's AutoMigrate creates the
+table on first connect, so a database started without `init.sql` looks healthy
+and serves requests. Only the time-based flipping is missing.
+
 ## Upgrading an existing database
 
 `db/init.sql` only runs when the data directory is empty, so an existing

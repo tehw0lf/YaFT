@@ -42,3 +42,16 @@ COPY --from=builder /usr/local/share/postgresql/extension/pg_cron.control /usr/l
 # Update shared_preload_libraries in default postgresql.conf
 RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample && \
     echo "cron.database_name = '${POSTGRES_DB:-postgres}'" >> /usr/local/share/postgresql/postgresql.conf.sample
+
+# Ship the schema with the image.
+#
+# Without this the schema only exists where db/init.sql happens to be bind
+# mounted, which is to say: on a checkout of this repository. A deployment
+# pulling ghcr.io/tehw0lf/yaft-db would come up with no pg_cron extension, no
+# table and no scheduled flips -- and would look healthy while doing it,
+# because GORM's AutoMigrate creates the table on first connect. Only the
+# time-based flipping would be silently missing.
+#
+# Postgres runs this once, when the data directory is empty. An existing
+# deployment still needs the manual steps in the README.
+COPY db/init.sql /docker-entrypoint-initdb.d/init.sql
