@@ -39,6 +39,45 @@ COPY --from=builder /usr/local/lib/postgresql/pg_cron.so /usr/local/lib/postgres
 COPY --from=builder /usr/local/share/postgresql/extension/pg_cron--*.sql /usr/local/share/postgresql/extension/
 COPY --from=builder /usr/local/share/postgresql/extension/pg_cron.control /usr/local/share/postgresql/extension/
 
-# Update shared_preload_libraries in default postgresql.conf
-RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample && \
-    echo "cron.database_name = '${POSTGRES_DB:-postgres}'" >> /usr/local/share/postgresql/postgresql.conf.sample
+# Update shared_preload_libraries in default postgresql.conf.
+#
+# cron.database_name is deliberately absent here and supplied by the entrypoint
+# as a server argument instead. It cannot be settled at build time:
+# ${POSTGRES_DB} would expand to whatever the build environment had --
+# 'postgres' in practice -- and pg_cron refuses CREATE EXTENSION from any other
+# database, so the container would exit during init rather than merely losing
+# its scheduled flips.
+RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample
+
+# Ship the schema with the image.
+#
+# Without this the schema only exists where db/init.sql happens to be bind
+# mounted, which is to say: on a checkout of this repository. A deployment
+# pulling ghcr.io/tehw0lf/yaft-db would come up with no pg_cron extension, no
+# table and no scheduled flips -- and would look healthy while doing it,
+# because GORM's AutoMigrate creates the table on first connect. Only the
+# time-based flipping would be silently missing.
+#
+# Postgres runs this once, when the data directory is empty. An existing
+# deployment still needs the manual steps in the README.
+COPY db/init.sql /docker-entrypoint-initdb.d/init.sql
+
+# 0755 explicitly: COPY preserves the build host's permissions, and a
+# restrictive umask there produced 0751, which is unreadable for the postgres
+# user the stock entrypoint switches to.
+COPY --chmod=0755 db/entrypoint.sh /usr/local/bin/yaft-entrypoint.sh
+
+# No USER directive, deliberately, and this is the upstream postgres image's
+# design rather than an oversight. The entrypoint has to start as root to
+# initialise the data directory and fix its ownership; it then hands the
+# server over with `exec gosu postgres`, so the long-running process does not
+# run as root. Adding USER postgres here breaks initialisation instead of
+# hardening anything -- verified: the container exits during startup, since
+# the configuration file it must rewrite is root-owned.
+#
+# The suppressions have to sit directly above the flagged lines, so the
+# reasoning is above rather than between them.
+# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+ENTRYPOINT ["yaft-entrypoint.sh"]
+# nosemgrep: dockerfile.security.missing-user.missing-user
+CMD ["postgres"]
