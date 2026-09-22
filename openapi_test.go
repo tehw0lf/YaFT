@@ -92,7 +92,12 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 	db = testDB
 	router := setupRouter()
 
-	call := func(method, path string, body interface{}) *httptest.ResponseRecorder {
+	// Every helper takes the active *testing.T rather than closing over the
+	// outer one. require.NoErrorf calls FailNow, and doing that on the parent
+	// from inside a subtest aborts the parent goroutine: the remaining
+	// subtests never run, and the failure is reported against the parent
+	// instead of the case that caused it.
+	call := func(t *testing.T, method, path string, body interface{}) *httptest.ResponseRecorder {
 		t.Helper()
 		var buf bytes.Buffer
 		if body != nil {
@@ -111,7 +116,7 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 		return rec
 	}
 
-	decode := func(rec *httptest.ResponseRecorder) map[string]interface{} {
+	decode := func(t *testing.T, rec *httptest.ResponseRecorder) map[string]interface{} {
 		t.Helper()
 		var out map[string]interface{}
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &out))
@@ -119,7 +124,7 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 	}
 
 	// Create a group: the one response that carries a secret.
-	created := decode(call(http.MethodPost, "/features", map[string]string{
+	created := decode(t, call(t, http.MethodPost, "/features", map[string]string{
 		"Key":   "specKey",
 		"Value": "true",
 	}))
@@ -130,7 +135,7 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 	t.Run("create returns a secret exactly once", func(t *testing.T) {
 		assert.NotEmpty(t, secret)
 
-		second := decode(call(http.MethodPost, "/features", map[string]string{
+		second := decode(t, call(t, http.MethodPost, "/features", map[string]string{
 			"Key":    uuid + keySeparator + "another",
 			"Value":  "false",
 			"Secret": secret,
@@ -140,12 +145,12 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 	})
 
 	t.Run("single toggle", func(t *testing.T) {
-		body := decode(call(http.MethodGet, "/features/"+key, nil))
+		body := decode(t, call(t, http.MethodGet, "/features/"+key, nil))
 		assert.Equal(t, key, body["key"])
 	})
 
 	t.Run("group", func(t *testing.T) {
-		body := decode(call(http.MethodGet, "/features/"+uuid, nil))
+		body := decode(t, call(t, http.MethodGet, "/features/"+uuid, nil))
 		assert.Len(t, body["toggles"], 2)
 	})
 
@@ -156,21 +161,21 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 		// covered by TestIntegrationOpenAPICollectionHash against real
 		// PostgreSQL.
 		assert.Equal(t, http.StatusNotFound,
-			call(http.MethodGet, "/collectionHash/"+uuid, nil).Code)
+			call(t, http.MethodGet, "/collectionHash/"+uuid, nil).Code)
 	})
 
 	t.Run("activate and deactivate", func(t *testing.T) {
-		assert.Equal(t, "true", decode(call(http.MethodPut,
+		assert.Equal(t, "true", decode(t, call(t, http.MethodPut,
 			"/features/activate/"+key+"/"+secret, nil))["value"])
-		assert.Equal(t, "false", decode(call(http.MethodPut,
+		assert.Equal(t, "false", decode(t, call(t, http.MethodPut,
 			"/features/deactivate/"+key+"/"+secret, nil))["value"])
 	})
 
 	t.Run("scheduling", func(t *testing.T) {
 		const when = "2026-10-10T15:00:00Z"
-		assert.Equal(t, when, decode(call(http.MethodPut,
+		assert.Equal(t, when, decode(t, call(t, http.MethodPut,
 			"/features/activateAt/"+key+"/"+when+"/"+secret, nil))["activeAt"])
-		assert.Equal(t, when, decode(call(http.MethodPut,
+		assert.Equal(t, when, decode(t, call(t, http.MethodPut,
 			"/features/deactivateAt/"+key+"/"+when+"/"+secret, nil))["disabledAt"])
 	})
 
@@ -178,24 +183,24 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 	// in full, so a port author otherwise finds them by trial and error.
 	t.Run("errors", func(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound,
-			call(http.MethodGet, "/features/nosuchkey", nil).Code)
+			call(t, http.MethodGet, "/features/nosuchkey", nil).Code)
 
 		assert.Equal(t, http.StatusUnauthorized,
-			call(http.MethodPut, "/features/activate/"+key+"/wrongsecret", nil).Code)
+			call(t, http.MethodPut, "/features/activate/"+key+"/wrongsecret", nil).Code)
 
 		// The secret is checked before the lookup, so a bad secret hides
 		// whether the key exists at all.
 		assert.Equal(t, http.StatusUnauthorized,
-			call(http.MethodPut, "/features/activate/"+uuid+keySeparator+"ghost/wrongsecret", nil).Code)
+			call(t, http.MethodPut, "/features/activate/"+uuid+keySeparator+"ghost/wrongsecret", nil).Code)
 
 		assert.Equal(t, http.StatusBadRequest,
-			call(http.MethodPut, "/features/activateAt/"+key+"/not-a-date/"+secret, nil).Code)
+			call(t, http.MethodPut, "/features/activateAt/"+key+"/not-a-date/"+secret, nil).Code)
 
 		assert.Equal(t, http.StatusBadRequest,
-			call(http.MethodPost, "/features", map[string]string{"Key": "k", "Value": "TRUE"}).Code)
+			call(t, http.MethodPost, "/features", map[string]string{"Key": "k", "Value": "TRUE"}).Code)
 
 		assert.Equal(t, http.StatusBadRequest,
-			call(http.MethodPost, "/features", map[string]string{
+			call(t, http.MethodPost, "/features", map[string]string{
 				"Key":   strings.Repeat("k", MaxKeyLength),
 				"Value": "true",
 			}).Code)
@@ -210,11 +215,11 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 		// panics while building the request. The status stays in the spec
 		// because a client written against a raw socket can still trigger it.
 
-		body := decode(call(http.MethodPut,
+		body := decode(t, call(t, http.MethodPut,
 			"/secret/update/"+uuid+"/"+secret+"/"+newSecret, nil))
 		assert.Equal(t, uuid, body["key"])
 
-		assert.Equal(t, http.StatusUnauthorized, call(http.MethodPut,
+		assert.Equal(t, http.StatusUnauthorized, call(t, http.MethodPut,
 			"/features/activate/"+key+"/"+secret, nil).Code,
 			"the old secret must stop working")
 
@@ -222,11 +227,11 @@ func TestOpenAPIMatchesHandlers(t *testing.T) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		body := decode(call(http.MethodDelete, "/features/"+key+"/"+secret, nil))
+		body := decode(t, call(t, http.MethodDelete, "/features/"+key+"/"+secret, nil))
 		assert.Equal(t, "Feature toggle deleted", body["message"])
 
 		assert.Equal(t, http.StatusNotFound,
-			call(http.MethodGet, "/features/"+key, nil).Code)
+			call(t, http.MethodGet, "/features/"+key, nil).Code)
 	})
 }
 
