@@ -15,15 +15,25 @@
 # `-c cron.database_name=...` is required.
 set -euo pipefail
 
-conf=/usr/local/share/postgresql/postgresql.conf.sample
 db="${POSTGRES_DB:-postgres}"
 
-# Replace the placeholder the Dockerfile wrote rather than appending, so a
-# restart does not stack up directives.
-if grep -q '^cron.database_name' "$conf"; then
-  sed -i "s|^cron.database_name.*|cron.database_name = '${db}'|" "$conf"
-else
-  echo "cron.database_name = '${db}'" >> "$conf"
+# Appended as a server argument rather than edited into postgresql.conf.
+#
+# The obvious `sed -i "s|...|cron.database_name = '$db'|"` breaks on the very
+# names it is meant to carry: PostgreSQL accepts a database called `a|b`, and
+# the pipe then terminates sed's substitution -- the container exits before
+# PostgreSQL starts. `&` and `\` are mangled more quietly still. Passing the
+# value as an argument hands it to PostgreSQL verbatim, with no second layer
+# of syntax to escape.
+if [ "${1:-}" = "postgres" ]; then
+  # Only when the caller has not set it already, so an explicit
+  # `-c cron.database_name=...` in a compose file still wins.
+  for arg in "$@"; do
+    case "$arg" in
+      cron.database_name=*) exec docker-entrypoint.sh "$@" ;;
+    esac
+  done
+  set -- "$@" -c "cron.database_name=${db}"
 fi
 
 exec docker-entrypoint.sh "$@"

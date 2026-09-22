@@ -41,14 +41,13 @@ COPY --from=builder /usr/local/share/postgresql/extension/pg_cron.control /usr/l
 
 # Update shared_preload_libraries in default postgresql.conf.
 #
-# cron.database_name gets a placeholder that the entrypoint rewrites from
-# POSTGRES_DB at startup. It cannot be settled here: ${POSTGRES_DB} expands at
-# build time, so the image would carry whatever the build environment had --
+# cron.database_name is deliberately absent here and supplied by the entrypoint
+# as a server argument instead. It cannot be settled at build time:
+# ${POSTGRES_DB} would expand to whatever the build environment had --
 # 'postgres' in practice -- and pg_cron refuses CREATE EXTENSION from any other
-# database. The container then exits during init rather than merely losing its
-# scheduled flips.
-RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample && \
-    echo "cron.database_name = 'postgres'" >> /usr/local/share/postgresql/postgresql.conf.sample
+# database, so the container would exit during init rather than merely losing
+# its scheduled flips.
+RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample
 
 # Ship the schema with the image.
 #
