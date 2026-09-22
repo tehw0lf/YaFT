@@ -133,7 +133,7 @@ security patches only reach `:latest` when something is pushed.
 ### Responses
 
 successful response:
-`{"activeAt":null,"disabledAt":null,"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","secret":"156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9","value":"true"}`
+`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null,"secret":"156152c0-07c6-4c87-b73a-b10db750bca3aa88c846-ce3f-48af-8fc0-e42a7b92f7321c8af6bc-b8a8-4bd8-88a5-53215bb82ae9"}`
 
 error response:
 `{"error":"Failed to create feature toggle"}`
@@ -164,7 +164,7 @@ Existing rows are not affected by either rule.
 ### Responses
 
 successful response:
-`{"activeAt":null,"disabledAt":null,"key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","value":"true"}`
+`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","value":"true","activeAt":null,"disabledAt":null,"tags":null}`
 
 error response if secret is wrong:
 `{"error":"Invalid secret"}`
@@ -194,7 +194,7 @@ error response if secret is correct but feature was not found:
 ### Responses
 
 successful response:
-`{"activeAt":null,"disabledAt":null,"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true"}`
+`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null}`
 
 error response if secret is wrong:
 `{"error":"Invalid secret"}`
@@ -209,7 +209,7 @@ error response if secret is correct but feature was not found:
 ### Responses
 
 successful response:
-`{"activeAt":"2026-10-10T15:00:00Z","disabledAt":null,"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true"}`
+`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":"2026-10-10T15:00:00Z","disabledAt":null,"tags":null}`
 
 error response if secret is wrong:
 `{"error":"Invalid secret"}`
@@ -246,7 +246,7 @@ delay.
 ### Responses
 
 successful response:
-`{"activeAt":null,"disabledAt":null,"key":"88ce4805-92a5-4774-ac05-5ebf12de9a58|a","value":"false"}`
+`{"key":"88ce4805-92a5-4774-ac05-5ebf12de9a58|a","value":"false","activeAt":null,"disabledAt":null,"tags":null}`
 
 error response if secret is wrong:
 `{"error":"Invalid secret"}`
@@ -261,7 +261,7 @@ error response if secret is correct but feature was not found:
 ### Responses
 
 successful response:
-`{"activeAt":null,"disabledAt":"2026-10-10T15:00:00Z","key":"88ce4805-92a5-4774-ac05-5ebf12de9a58|a","value":"false"}`
+`{"key":"88ce4805-92a5-4774-ac05-5ebf12de9a58|a","value":"false","activeAt":null,"disabledAt":"2026-10-10T15:00:00Z","tags":null}`
 
 error response if secret is wrong:
 `{"error":"Invalid secret"}`
@@ -276,7 +276,7 @@ error response if secret is correct but feature was not found:
 ### Responses
 
 successful response:
-`{"activeAt":null,"disabledAt":null,"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true"}`
+`{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null}`
 
 error response:
 `{"error":"Feature not found"}`
@@ -288,7 +288,16 @@ error response:
 ### Responses
 
 successful response:
-`{"toggles":[{"ID":20,"Key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","Value":"true","ActiveAt":null,"DisabledAt":null},{"ID":21,"Key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","Value":"true","ActiveAt":null,"DisabledAt":null}]}`
+`{"toggles":[{"key":"896ea308-382f-46b0-bc59-d93a28013633|myKey","value":"true","activeAt":null,"disabledAt":null,"tags":null},{"key":"896ea308-382f-46b0-bc59-d93a28013633|myOtherKey","value":"true","activeAt":null,"disabledAt":null,"tags":null}]}`
+
+The field names are the same here as for a single toggle. Up to 0.1.6 this
+response spelled them `Key`, `Value`, `ActiveAt` and `DisabledAt`, because the
+response DTO carried no JSON tags while the single-toggle response was written
+out by hand. A client that has to work with older instances should accept both
+spellings; see R22a in
+[yaft-conformance](https://github.com/tehw0lf/yaft-conformance).
+
+An unset `tags` is `null`, not `[]`.
 
 ## Getting the collection hash for a given UUID
 

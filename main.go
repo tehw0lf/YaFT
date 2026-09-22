@@ -37,12 +37,33 @@ type FeatureToggle struct {
 	UpdatedAt time.Time
 }
 
+// FeatureToggleDTO is what leaves the API: a FeatureToggle without the ID and
+// without the secret.
+//
+// The JSON tags are not cosmetic. Without them Go marshals the field names as
+// written, so a UUID group came back capitalised (`Key`, `Value`) while a
+// single toggle -- written by hand as a gin.H literal -- came back lowercase.
+// Two spellings for one resource meant every client had to normalise both, and
+// the usual `a.Key || a.key` idiom silently drops a legitimately empty value.
 type FeatureToggleDTO struct {
-	Key        string
-	Value      string
-	ActiveAt   *time.Time
-	DisabledAt *time.Time
-	Tags       pq.StringArray
+	Key        string         `json:"key"`
+	Value      string         `json:"value"`
+	ActiveAt   *time.Time     `json:"activeAt"`
+	DisabledAt *time.Time     `json:"disabledAt"`
+	Tags       pq.StringArray `json:"tags"`
+}
+
+// toDTO strips a FeatureToggle down to what callers may see. Every handler
+// that returns a toggle goes through it, so there is one definition of the
+// response shape rather than one per handler.
+func toDTO(toggle FeatureToggle) FeatureToggleDTO {
+	return FeatureToggleDTO{
+		Key:        toggle.Key,
+		Value:      toggle.Value,
+		ActiveAt:   toggle.ActiveAt,
+		DisabledAt: toggle.DisabledAt,
+		Tags:       toggle.Tags,
+	}
 }
 
 var db *gorm.DB
@@ -252,16 +273,9 @@ func setupRouter() *gin.Engine {
 					"length": len(toggles),
 				}).Info("Returning feature toggles without secrets")
 
-				var strippedToggles []FeatureToggleDTO
+				strippedToggles := make([]FeatureToggleDTO, 0, len(toggles))
 				for _, obj := range toggles {
-					newObj := FeatureToggleDTO{
-						Key:        obj.Key,
-						Value:      obj.Value,
-						ActiveAt:   obj.ActiveAt,
-						DisabledAt: obj.DisabledAt,
-						Tags:       obj.Tags,
-					}
-					strippedToggles = append(strippedToggles, newObj)
+					strippedToggles = append(strippedToggles, toDTO(obj))
 				}
 				c.JSON(http.StatusOK, gin.H{
 					"toggles": strippedToggles,
@@ -277,13 +291,7 @@ func setupRouter() *gin.Engine {
 				"disabledAt": toggle.DisabledAt,
 			}).Info("Returning feature toggle value without secret")
 
-			c.JSON(http.StatusOK, gin.H{
-				"key":        toggle.Key,
-				"value":      toggle.Value,
-				"activeAt":   toggle.ActiveAt,
-				"disabledAt": toggle.DisabledAt,
-				"tags":       toggle.Tags,
-			})
+			c.JSON(http.StatusOK, toDTO(toggle))
 		}
 	})
 
@@ -372,22 +380,14 @@ func setupRouter() *gin.Engine {
 		}).Info("Successfully created feature toggle")
 
 		if secret != "" {
-			c.JSON(http.StatusCreated, gin.H{
-				"key":        newToggle.Key,
-				"value":      newToggle.Value,
-				"activeAt":   newToggle.ActiveAt,
-				"disabledAt": newToggle.DisabledAt,
-				"tags":       newToggle.Tags,
-				"secret":     secret,
-			})
+			// The one response that carries the secret: creating the first
+			// toggle of a group is the only time the caller gets to see it.
+			c.JSON(http.StatusCreated, struct {
+				FeatureToggleDTO
+				Secret string `json:"secret"`
+			}{toDTO(newToggle), secret})
 		} else {
-			c.JSON(http.StatusCreated, gin.H{
-				"key":        newToggle.Key,
-				"value":      newToggle.Value,
-				"activeAt":   newToggle.ActiveAt,
-				"disabledAt": newToggle.DisabledAt,
-				"tags":       newToggle.Tags,
-			})
+			c.JSON(http.StatusCreated, toDTO(newToggle))
 		}
 	})
 
@@ -447,13 +447,7 @@ func setupRouter() *gin.Engine {
 			"activeAt": toggle.ActiveAt,
 		}).Info("Successfully activated feature toggle")
 
-		c.JSON(http.StatusOK, gin.H{
-			"key":        toggle.Key,
-			"value":      toggle.Value,
-			"activeAt":   toggle.ActiveAt,
-			"disabledAt": toggle.DisabledAt,
-			"tags":       toggle.Tags,
-		})
+		c.JSON(http.StatusOK, toDTO(toggle))
 	})
 
 	router.PUT("/features/activateAt/:key/:date/:secret", func(c *gin.Context) {
@@ -527,13 +521,7 @@ func setupRouter() *gin.Engine {
 			"activeAt": toggle.ActiveAt,
 		}).Info("Successfully set feature toggle activeAt")
 
-		c.JSON(http.StatusOK, gin.H{
-			"key":        toggle.Key,
-			"value":      toggle.Value,
-			"activeAt":   toggle.ActiveAt,
-			"disabledAt": toggle.DisabledAt,
-			"tags":       toggle.Tags,
-		})
+		c.JSON(http.StatusOK, toDTO(toggle))
 	})
 
 	router.PUT("/features/deactivate/:key/:secret", func(c *gin.Context) {
@@ -592,13 +580,7 @@ func setupRouter() *gin.Engine {
 			"disabledAt": toggle.DisabledAt,
 		}).Info("Successfully deactivated feature toggle")
 
-		c.JSON(http.StatusOK, gin.H{
-			"key":        toggle.Key,
-			"value":      toggle.Value,
-			"activeAt":   toggle.ActiveAt,
-			"disabledAt": toggle.DisabledAt,
-			"tags":       toggle.Tags,
-		})
+		c.JSON(http.StatusOK, toDTO(toggle))
 	})
 
 	router.PUT("/features/deactivateAt/:key/:date/:secret", func(c *gin.Context) {
@@ -672,13 +654,7 @@ func setupRouter() *gin.Engine {
 			"disabledAt": toggle.DisabledAt,
 		}).Info("Successfully set feature toggle disabledAt")
 
-		c.JSON(http.StatusOK, gin.H{
-			"key":        toggle.Key,
-			"value":      toggle.Value,
-			"activeAt":   toggle.ActiveAt,
-			"disabledAt": toggle.DisabledAt,
-			"tags":       toggle.Tags,
-		})
+		c.JSON(http.StatusOK, toDTO(toggle))
 	})
 
 	router.DELETE("/features/:key/:secret", func(c *gin.Context) {
