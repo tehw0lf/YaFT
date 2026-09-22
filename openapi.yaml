@@ -18,7 +18,7 @@ openapi: 3.1.0
 
 info:
   title: YaFT
-  version: 0.2.5
+  version: 0.2.6
   summary: Yet another Feature Toggle - a small feature toggle API.
   description: |
     Feature toggles are grouped by a UUID prefix: a key has the form

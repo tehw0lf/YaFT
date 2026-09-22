@@ -63,7 +63,20 @@ RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/p
 # deployment still needs the manual steps in the README.
 COPY db/init.sql /docker-entrypoint-initdb.d/init.sql
 
-COPY db/entrypoint.sh /usr/local/bin/yaft-entrypoint.sh
-RUN chmod +x /usr/local/bin/yaft-entrypoint.sh
+# 0755 explicitly: COPY preserves the build host's permissions, and a
+# restrictive umask there produced 0751, which is unreadable for the postgres
+# user the stock entrypoint switches to.
+COPY --chmod=0755 db/entrypoint.sh /usr/local/bin/yaft-entrypoint.sh
+
+# nosemgrep: dockerfile.security.missing-user.missing-user
+# nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+#
+# No USER directive, deliberately, and this is the upstream postgres image's
+# design rather than an oversight. The entrypoint has to start as root to
+# initialise the data directory and fix its ownership; it then hands the
+# server over with `exec gosu postgres`, so the long-running process does not
+# run as root. Adding USER postgres here breaks initialisation instead of
+# hardening anything -- verified: the container exits during startup, since
+# the configuration file it must rewrite is root-owned.
 ENTRYPOINT ["yaft-entrypoint.sh"]
 CMD ["postgres"]
