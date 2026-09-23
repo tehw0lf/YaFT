@@ -160,7 +160,8 @@ UPDATE feature_toggles SET value = 'false' WHERE disabled_at <= CURRENT_DATE;
 ## Environment Configuration
 
 ### Required Environment Variables
-- `DB_DSN`: PostgreSQL connection string (format: `postgres://user:password@host:port/database`)
+- `DB_DSN`: PostgreSQL connection string (format: `postgres://host:port/database`)
+- `PGUSER` / `PGPASSWORD`: Credentials, read by pgx when the DSN omits them. Kept out of the URL so any password works — `%`, `@`, `/`, `:` and `#` would otherwise break parsing
 - `POSTGRES_USER`: Database username
 - `POSTGRES_PASSWORD`: Database password
 - `POSTGRES_DB`: Database name
