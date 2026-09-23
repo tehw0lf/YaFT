@@ -637,3 +637,30 @@ func TestScheduleFeatureToggleAt(t *testing.T) {
 		}
 	})
 }
+
+// Browsers call the API from pages on other origins (yaft-admin, the
+// playground). A wildcard origin without credentials is what a public,
+// cookie-less API needs; a reflected origin with credentials is not.
+func TestCORS(t *testing.T) {
+	testDB := setupTestDB(t)
+
+	withTestDB(testDB, func() {
+		router := setupTestRouter(testDB)
+
+		for _, method := range []string{"GET", "OPTIONS"} {
+			t.Run(method, func(t *testing.T) {
+				req, _ := http.NewRequest(method, "/features/nothing", nil)
+				req.Header.Set("Origin", "https://example.org")
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+				assert.Empty(t, w.Header().Get("Access-Control-Allow-Credentials"))
+				assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "DELETE")
+				if method == "OPTIONS" {
+					assert.Equal(t, http.StatusNoContent, w.Code)
+				}
+			})
+		}
+	})
+}

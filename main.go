@@ -159,11 +159,13 @@ func main() {
 func setupRouter() *gin.Engine {
 	router := gin.Default()
 
-	// Add CORS middleware
+	// CORS: any origin, no credentials. The API is public and authenticates by
+	// the secret in the path, never by cookies, so there is nothing for
+	// credentials to carry. The previous echoed Origin plus Allow-Credentials
+	// bought nothing, and lacking Vary: Origin it would have let a cache hand
+	// one site's CORS header to another. A wildcard needs no Vary.
 	router.Use(func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
