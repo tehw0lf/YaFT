@@ -41,7 +41,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # The password travels in PGPASSWORD, not in the URL. In a URL `%`, `@`,
+      # `/`, `:` and `#` are syntax, so a generated password containing one of
+      # them made the DSN unparseable and the app restart-looped. pgx takes user
+      # and password from PGUSER/PGPASSWORD when the DSN leaves them out.
+      DB_DSN: postgres://db:5432/${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       - db
     read_only: true

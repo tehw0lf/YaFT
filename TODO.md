@@ -1,26 +1,31 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-21 (Phase 1 abgeschlossen, Phase 0 zur Hälfte)
+Stand: 2026-09-23 (Phasen 0–2 abgeschlossen)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
 
 ## Hier weitermachen
 
-Stand 2026-09-22. **Phase 0 ist abgeschlossen, Phase 2 fast.** Alles ist
-gemergt und released, keine offenen PRs.
+Stand 2026-09-23. **Phase 0 und Phase 2 sind abgeschlossen.**
+`https://yaft.tehwolf.de` läuft auf der OCI-Instanz.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.0 | Images publiziert, OpenAPI-Spec, deployfähig |
+| `Go/YaFT` | 0.3.1 | Images publiziert, OpenAPI-Spec, deployt |
 | `yaft-conformance` | 1.1.0 | 27 Regeln, 90 Fälle |
 | `TypeScript/yaft` | 0.0.16 | besteht alle 90 Fälle; **erstmals importierbar publiziert** |
-| `TypeScript/yaft-playground` | 0.1.0 | CI grün inkl. 8 E2E gegen echtes Backend |
-| `Docker/tehwolf.de/yaft` | – | Compose-Stack liegt bereit |
+| `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
+| `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
 
-**Nächster Schritt: das Deployment auf der OCI-Instanz.** Der CNAME für
-`yaft.tehwolf.de` ist gesetzt, die Images sind multi-arch, der
-Playground-Downstream-Check ist grün. Zu tun auf der Instanz:
+**Nächster Schritt: Phase 3** (Ports: yaft-java, dann yaft-go).
+
+Deploy verifiziert am 2026-09-23: `GET /features/nothing` → `404` mit
+`{"error":"Feature not found"}`, HSTS gesetzt, CORS spiegelt den `Origin`;
+`cron.job` enthält die beiden Minuten-Jobs und die Retention (`0 3 * * *`);
+`yaft-db` veröffentlicht keinen Port.
+
+Zum Neuaufsetzen der Instanz:
 
 1. `Docker/tehwolf.de/yaft/.env` anlegen (gitignored):
    ```
@@ -28,8 +33,12 @@ Playground-Downstream-Check ist grün. Zu tun auf der Instanz:
    POSTGRES_PASSWORD=<openssl rand -hex 24>
    POSTGRES_DB=yaft
    ```
+   **`.env` greift nur beim allerersten Start.** User und Passwort schreibt
+   das Postgres-Image einmalig ins leere Volume; später geänderte Werte
+   ignoriert es. Wer sie ändert, braucht `down -v` (löscht die Daten) oder
+   `ALTER ROLE` von Hand.
 2. `docker compose -f yaft/docker-compose.yml up -d`
-3. Retention scharfschalten (bewusst nicht vorgeplant):
+3. Retention scharfschalten (bewusst nicht vorgeplant, nur **einmal**):
    ```
    docker compose -f yaft/docker-compose.yml exec yaft-db psql -U yaft -d yaft \
      -c "SELECT cron.schedule('0 3 * * *', \$\$ SELECT cleanup_stale_feature_toggles(); \$\$);"
@@ -37,17 +46,21 @@ Playground-Downstream-Check ist grün. Zu tun auf der Instanz:
 4. Prüfen: `curl https://yaft.tehwolf.de/features/nothing` → `404` mit
    JSON-Fehler; die DB darf **keinen** Port veröffentlichen.
 
-**Offen und nicht im Code lösbar:** die GHCR-Pakete sind privat. Die
-Playground-CI baut die Images deshalb aus dem öffentlichen YaFT-Repo statt sie
-zu ziehen. Auf `public` umstellen wäre einfacher — dann greift wieder der
-normale Pull-Pfad.
+**Entschieden: die GHCR-Pakete bleiben privat.** Watchtower zieht `:latest`
+automatisch auf die Instanz, und das soll nicht jeder können. Die
+Playground-CI baut die Images deshalb weiterhin aus dem öffentlichen
+YaFT-Repo, statt sie zu ziehen.
 
-Danach bleibt **Phase 3** (Ports: yaft-java, yaft-go) als nächster großer
-Block.
+**Klein, ohne Eile:** Die CORS-Middleware spiegelt jeden `Origin` und setzt
+`Allow-Credentials: true`. Ausnutzbar ist das nicht — die API kennt keine
+Cookies, das Secret steht im Pfad —, aber `Allow-Credentials` ist damit
+überflüssig, und `Vary: Origin` fehlt für den Fall, dass je ein Cache
+davorsteht.
 
 ### Was Phase 2 unterwegs gefunden hat
 
-Das Ausprobieren statt Lesen hat sich gelohnt — sechs echte Fehler:
+Das Ausprobieren statt Lesen hat sich gelohnt — neun echte Fehler, die
+letzten drei erst beim Deploy:
 
 - `init.sql` fehlte im `yaft-db`-Image; eine gezogene DB hatte keine
   Cronjobs und **sah dabei gesund aus**, weil AutoMigrate die Tabelle anlegt.
@@ -60,6 +73,15 @@ Das Ausprobieren statt Lesen hat sich gelohnt — sechs echte Fehler:
 - **`@tehw0lf/yaft` war nie importierbar** — kein `main`, kein `types`, und
   publiziert wurde rohes `src/` statt `dist/yaft/`. Deshalb hat `yaft-admin`
   die Provider nachgebaut, statt die Library zu nutzen.
+- **Das Passwort stand im `DB_DSN`-URL.** Ein generiertes Passwort mit `%`
+  machte die URL unparsebar (`invalid URL escape "%*F"`), die API startete
+  in Schleife neu. Jetzt kommen User und Passwort über `PGUSER`/`PGPASSWORD`,
+  die pgx liest, wenn die DSN sie auslässt — geprüft mit `a%*F@/:#?b`, samt
+  Gegenprobe mit falschem Passwort.
+- **Der Seed konnte die Produktion nicht befüllen:** 6 Writes gegen ein
+  Limit von 5/min, der sechste bekam `429`. Jetzt `curl --retry`.
+- `npm run e2e` im Playground lief aus dem Repo-Root und sammelte die
+  Jest-Specs ein; lokal hat es nie funktioniert, nur CI (aus `e2e/`).
 
 ## Ausgangslage
 
@@ -439,8 +461,11 @@ Compose-Datei:
    Die Workflows bauen multi-arch, das Manifest einmal mit
    `docker manifest inspect ghcr.io/tehw0lf/yaft:latest` bestätigen.
 5. `docker compose -f yaft/docker-compose.yml up -d` auf der Instanz.
-6. Playwright-Lauf des Playgrounds mit `API_URL=https://yaft.tehwolf.de`,
-   auch als optionaler CI-Job, weil die Instanz dauerhaft läuft.
+6. ~~Playwright-Lauf des Playgrounds mit `API_URL=https://yaft.tehwolf.de`,
+   auch als optionaler CI-Job, weil die Instanz dauerhaft läuft.~~
+   **Erledigt (yaft-playground 0.1.1):** 8/8 grün gegen die Instanz, aus dem
+   Browser über eine fremde Origin, also samt CORS. Als CI-Job nur manuell
+   (`e2e-live.yml`) — jeder Lauf legt eine Gruppe in der Produktion an.
 
 ### Schutz der öffentlichen API
 
