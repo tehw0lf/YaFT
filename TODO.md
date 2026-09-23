@@ -12,7 +12,7 @@ Stand 2026-09-23. **Phase 0 und Phase 2 sind abgeschlossen.**
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.1 | Images publiziert, OpenAPI-Spec, deployt |
+| `Go/YaFT` | 0.3.2 | Images publiziert, OpenAPI-Spec, deployt |
 | `yaft-conformance` | 1.1.0 | 27 Regeln, 90 Fälle |
 | `TypeScript/yaft` | 0.0.16 | besteht alle 90 Fälle; **erstmals importierbar publiziert** |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
@@ -21,7 +21,7 @@ Stand 2026-09-23. **Phase 0 und Phase 2 sind abgeschlossen.**
 **Nächster Schritt: Phase 3** (Ports: yaft-java, dann yaft-go).
 
 Deploy verifiziert am 2026-09-23: `GET /features/nothing` → `404` mit
-`{"error":"Feature not found"}`, HSTS gesetzt, CORS spiegelt den `Origin`;
+`{"error":"Feature not found"}`, HSTS gesetzt, CORS offen für alle Origins;
 `cron.job` enthält die beiden Minuten-Jobs und die Retention (`0 3 * * *`);
 `yaft-db` veröffentlicht keinen Port.
 
@@ -51,11 +51,10 @@ automatisch auf die Instanz, und das soll nicht jeder können. Die
 Playground-CI baut die Images deshalb weiterhin aus dem öffentlichen
 YaFT-Repo, statt sie zu ziehen.
 
-**Klein, ohne Eile:** Die CORS-Middleware spiegelt jeden `Origin` und setzt
-`Allow-Credentials: true`. Ausnutzbar ist das nicht — die API kennt keine
-Cookies, das Secret steht im Pfad —, aber `Allow-Credentials` ist damit
-überflüssig, und `Vary: Origin` fehlt für den Fall, dass je ein Cache
-davorsteht.
+**Erledigt (0.3.2):** CORS antwortet mit `Access-Control-Allow-Origin: *` und
+ohne `Allow-Credentials`. Vorher wurde jeder `Origin` gespiegelt und
+`Allow-Credentials: true` gesetzt — nicht ausnutzbar, weil die API keine
+Cookies kennt, aber überflüssig und ohne `Vary: Origin` cache-unsicher.
 
 ### Was Phase 2 unterwegs gefunden hat
 
