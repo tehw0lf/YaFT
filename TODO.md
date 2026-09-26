@@ -560,7 +560,7 @@ wie die TS-Referenz.
 
 ### Stand yaft-java (2026-09-26)
 
-Unter `Java/yaft-java`, Version 0.1.0, lokal committet. Erste Etappe
+Unter `Java/yaft-java` (`tehw0lf/yaft-java`), heute 0.1.2. Die erste Etappe
 "Core + Suite grün" ist erreicht:
 
 - `Feature` (Record), `Evaluation` (Zeitlogik, Uhr als `InstantSource`),
