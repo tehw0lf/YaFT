@@ -1,32 +1,35 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-26 (Phasen 0–2 abgeschlossen, Phase 3 begonnen)
+Stand: 2026-09-27 (Phasen 0–2 abgeschlossen, Phase 3 läuft)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
 
 ## Hier weitermachen
 
-Stand 2026-09-26. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
+Stand 2026-09-27. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
 `https://yaft.tehwolf.de` läuft auf der OCI-Instanz. yaft-java besteht die
-Suite vollständig, ist aber noch nicht veröffentlicht.
+Suite vollständig und ist seit 0.2.2 auf Maven Central.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.4 | Images publiziert, OpenAPI-Spec, deployt |
+| `Go/YaFT` | 0.3.5 | Images publiziert, OpenAPI-Spec, deployt |
 | `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
 | `TypeScript/yaft` | 0.0.17 | besteht Suite 2.0.0; R29-Fix (Boolean-Shape) auf npm |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.1.2 | `tehw0lf/yaft-java`, CI grün, besteht Suite 2.0.0 (137 Tests); noch nicht publiziert |
-| `workflows` | – | `java_version`-Input gemergt (#163) |
+| `Java/yaft-java` | 0.2.2 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider; 152 Tests |
+| `workflows` | – | `java_version`-Input (#163), Maven-Central-Publish (#164) |
 
 **Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
 
-1. **API-Provider für yaft-java** (`java.net.http`), Abnahme wie in yaft-ts
-   gegen beide Antwortformen.
-2. **Maven Central** — braucht Sonatype-Account, DNS-TXT auf `tehwolf.de`,
-   GPG-Schlüssel und einen Publish-Workflow in `tehw0lf/workflows`.
+1. ✅ **API-Provider für yaft-java** (0.2.0). JSON-Decoder wird injiziert,
+   kein eigener Parser; Deadline über den ganzen Austausch.
+2. ✅ **Maven Central** (0.2.2, 2026-09-27). `publish-maven-central.yml` in
+   `tehw0lf/workflows`; Signaturschlüssel `tehw0lf`,
+   Fingerprint `2A0351C28EB122B8946E52E39A12B17723327580`, Backup in KeePass.
+   **Jeder Merge auf `main` mit neuer Version veröffentlicht** — und Central
+   löscht nie. Zum Prüfen ohne Upload `maven_central_dry_run: true`.
 3. **`yaft-java-playground`** — Spring-Boot-App, die das **veröffentlichte**
    Artefakt gegen das **echte** Backend benutzt, mit E2E-Tests; Gegenstück
    zu `yaft-playground`. Bewusst erst nach 1 und 2: Der TS-Playground hat das
