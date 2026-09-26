@@ -14,19 +14,16 @@ Suite vollständig, ist aber noch nicht veröffentlicht.
 | Repo | Version | Stand |
 |---|---|---|
 | `Go/YaFT` | 0.3.3 | Images publiziert, OpenAPI-Spec, deployt |
-| `yaft-conformance` | 1.1.0 | 27 Regeln, 90 Fälle |
+| `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
 | `TypeScript/yaft` | 0.0.16 | besteht alle 90 Fälle; **erstmals importierbar publiziert** |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.1.0 | **besteht alle 90 Fälle**, 124 Tests; lokal, noch kein GitHub-Repo |
-| `workflows` | – | PR #163: `java_version`-Input, Voraussetzung für die yaft-java-CI |
+| `Java/yaft-java` | 0.1.1 | `tehw0lf/yaft-java`, CI grün; PR #2 pinnt Suite 2.0.0 (137 Tests) |
+| `workflows` | – | `java_version`-Input gemergt (#163) |
 
-**Nächster Schritt: yaft-java veröffentlichen** — Reihenfolge ist zwingend:
-
-1. `tehw0lf/workflows#163` mergen. Vorher schlägt die yaft-java-CI beim
-   Dispatch fehl, weil `java_version` auf `main` noch unbekannt ist.
-2. Repo `tehw0lf/yaft-java` anlegen und `main` pushen; CI muss grün sein.
-3. Eigene Etappe: Maven Central (siehe Phase 3, "Stand yaft-java").
+**Offen:** `yaft-java#2` und `yaft-ts#23` (Suite 2.0.0; yaft-ts mit
+R29-Fix, Merge publiziert 0.0.17 auf npm). Danach eigene Etappe: Maven
+Central (siehe Phase 3, "Stand yaft-java").
 
 Danach yaft-go.
 
@@ -578,7 +575,8 @@ Unter `Java/yaft-java`, Version 0.1.0, lokal committet. Erste Etappe
 Aufruf fehl — die Suite hat es gefunden, weil ihre Test-Interfaces
 package-private sind. Gilt für jeden Proxy-basierten Port.
 
-**Lücken in der Suite**, im Java-Port bewusst wie die Referenz gelöst:
+**Lücken in der Suite — geschlossen mit yaft-conformance 2.0.0** (Major,
+weil R29 die TS-Referenz rot machte):
 
 - Präzision von Sekundenbruchteilen: `Date.parse` schneidet nach drei
   Stellen ab; yaft-java auch. Ein Port mit Nanosekunden flippt sonst eine
@@ -586,9 +584,18 @@ package-private sind. Gilt für jeden Proxy-basierten Port.
 - Offset-Bereich: V8 nimmt `±hh:mm` bis 23:59, `java.time.ZoneOffset` nur bis
   18:00. yaft-java rechnet den Offset selbst und lehnt >23/>59 ab. Die SPEC
   sagt dazu nichts.
-- `boolean-shape-missing-key` prüft im TS-Adapter nur `response == expected`,
-  nie `isEnabled` auf einem fehlenden Key; der Fall hat keinen `key` zum
-  Abfragen. yaft-java prüft es mit einem eigenen Schlüssel.
+- `boolean-shape-missing-key` prüfte im TS-Adapter nur `response == expected`,
+  nie `isEnabled` auf einem fehlenden Key. Jetzt tragen Boolean-Fälle eine
+  `isEnabled`-Map; `mapping.json` ist Format 2, und Adapter müssen unbekannte
+  Formatversionen ablehnen.
+- **R29, beim Schließen gefunden:** Die TS-Boolean-Provider gaben den
+  gespeicherten Wert zurück; `{"myToggle": "false"}` war truthy, also **an**.
+  Nur echtes `true` zählt jetzt, Nicht-Booleans fallen beim Laden weg.
+  CodeRabbit fand dazu noch, dass der API-Provider gemischte Antworten
+  komplett verwarf — in yaft-ts#23 behoben.
+
+R27/R28 bestanden TS und Java bereits unverändert; beide wurden vorher an
+V8 gemessen, nicht angenommen.
 
 **Offen für die Publish-Etappe:** Sonatype-Central-Account, DNS-TXT für
 `tehwolf.de`, GPG-Schlüssel, und ein Maven-Central-Publish-Workflow in
