@@ -13,17 +13,29 @@ Suite vollständig, ist aber noch nicht veröffentlicht.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.3 | Images publiziert, OpenAPI-Spec, deployt |
+| `Go/YaFT` | 0.3.4 | Images publiziert, OpenAPI-Spec, deployt |
 | `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
-| `TypeScript/yaft` | 0.0.16 | besteht alle 90 Fälle; **erstmals importierbar publiziert** |
+| `TypeScript/yaft` | 0.0.17 | besteht Suite 2.0.0; R29-Fix (Boolean-Shape) auf npm |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.1.1 | `tehw0lf/yaft-java`, CI grün; PR #2 pinnt Suite 2.0.0 (137 Tests) |
+| `Java/yaft-java` | 0.1.2 | `tehw0lf/yaft-java`, CI grün, besteht Suite 2.0.0 (137 Tests); noch nicht publiziert |
 | `workflows` | – | `java_version`-Input gemergt (#163) |
 
-**Offen:** `yaft-java#2` und `yaft-ts#23` (Suite 2.0.0; yaft-ts mit
-R29-Fix, Merge publiziert 0.0.17 auf npm). Danach eigene Etappe: Maven
-Central (siehe Phase 3, "Stand yaft-java").
+**Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
+
+1. **API-Provider für yaft-java** (`java.net.http`), Abnahme wie in yaft-ts
+   gegen beide Antwortformen.
+2. **Maven Central** — braucht Sonatype-Account, DNS-TXT auf `tehwolf.de`,
+   GPG-Schlüssel und einen Publish-Workflow in `tehw0lf/workflows`.
+3. **`yaft-java-playground`** — Spring-Boot-App, die das **veröffentlichte**
+   Artefakt gegen das **echte** Backend benutzt, mit E2E-Tests; Gegenstück
+   zu `yaft-playground`. Bewusst erst nach 1 und 2: Der TS-Playground hat das
+   kaputte npm-Paket nur gefunden, weil er das publizierte Paket installiert
+   hat. Ein Beispiel per `includeBuild` hätte das nie gesehen. Offene Frage,
+   die es beantworten soll: vertragen sich YaFTs JDK-Proxies mit
+   Spring-Proxies (`@Transactional`, AOP)?
+
+Danach yaft-go.
 
 Danach yaft-go.
 
@@ -161,6 +173,7 @@ Befunde aus dem Code, die den Plan prägen:
 | Java: Mechanismus (2026-09-26) | JDK-Dynamic-Proxy über Interfaces, Kern ohne Abhängigkeiten; ein Spring-Modul kann später darauf aufsetzen. ByteBuddy, Annotation-Processor und Spring AOP verworfen |
 | Java: Build (2026-09-26) | Gradle (Kotlin DSL), Java 25; die CI-JDK kommt über den neuen `java_version`-Input von `tehw0lf/workflows` statt über Toolchain-Auto-Download |
 | Java: Koordinaten (2026-09-26) | `de.tehwolf:yaft`, Paket `de.tehwolf.yaft` — eigene Domain statt `io.github.tehw0lf`; Sonatype verifiziert per DNS-TXT auf `tehwolf.de` |
+| Beispiel-Apps (2026-09-26) | pro Port ein `yaft-<sprache>-playground` gegen publiziertes Artefakt und echtes Backend, erst nach API-Provider und Publish; Java als Spring Boot. `yaft-playground` (TS) behält seinen Namen |
 
 ## Phase 0 – Konformitäts-Suite (`yaft-conformance`)
 
@@ -547,7 +560,7 @@ wie die TS-Referenz.
 
 ### Stand yaft-java (2026-09-26)
 
-Unter `Java/yaft-java`, Version 0.1.0, lokal committet. Erste Etappe
+Unter `Java/yaft-java` (`tehw0lf/yaft-java`), heute 0.1.2. Die erste Etappe
 "Core + Suite grün" ist erreicht:
 
 - `Feature` (Record), `Evaluation` (Zeitlogik, Uhr als `InstantSource`),
@@ -597,10 +610,8 @@ weil R29 die TS-Referenz rot machte):
 R27/R28 bestanden TS und Java bereits unverändert; beide wurden vorher an
 V8 gemessen, nicht angenommen.
 
-**Offen für die Publish-Etappe:** Sonatype-Central-Account, DNS-TXT für
-`tehwolf.de`, GPG-Schlüssel, und ein Maven-Central-Publish-Workflow in
-`tehw0lf/workflows` (gibt es noch nicht). Danach API-Provider
-(`java.net.http`), JSON-Parsing dann vermutlich als optionales Modul.
+**Weiter** siehe "Nächste Schritte" oben: API-Provider, Maven Central,
+dann `yaft-java-playground`.
 
 ---
 
