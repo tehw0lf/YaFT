@@ -1,15 +1,15 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-26 (Phasen 0–2 abgeschlossen, Phase 3 begonnen)
+Stand: 2026-09-27 (Phasen 0–2 abgeschlossen, Phase 3 läuft)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
 
 ## Hier weitermachen
 
-Stand 2026-09-26. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
+Stand 2026-09-27. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
 `https://yaft.tehwolf.de` läuft auf der OCI-Instanz. yaft-java besteht die
-Suite vollständig, ist aber noch nicht veröffentlicht.
+Suite vollständig und ist seit 0.2.2 auf Maven Central.
 
 | Repo | Version | Stand |
 |---|---|---|
@@ -19,7 +19,7 @@ Suite vollständig, ist aber noch nicht veröffentlicht.
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
 | `Java/yaft-java` | 0.2.2 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider; 152 Tests |
-| `workflows` | – | `java_version`-Input gemergt (#163) |
+| `workflows` | – | `java_version`-Input (#163), Maven-Central-Publish (#164) |
 
 **Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
 
