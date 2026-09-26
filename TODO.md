@@ -1,24 +1,31 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-23 (Phasen 0–2 abgeschlossen)
+Stand: 2026-09-26 (Phasen 0–2 abgeschlossen, Phase 3 begonnen)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
 
 ## Hier weitermachen
 
-Stand 2026-09-23. **Phase 0 und Phase 2 sind abgeschlossen.**
-`https://yaft.tehwolf.de` läuft auf der OCI-Instanz.
+Stand 2026-09-26. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
+`https://yaft.tehwolf.de` läuft auf der OCI-Instanz. yaft-java besteht die
+Suite vollständig, ist aber noch nicht veröffentlicht.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.2 | Images publiziert, OpenAPI-Spec, deployt |
-| `yaft-conformance` | 1.1.0 | 27 Regeln, 90 Fälle |
+| `Go/YaFT` | 0.3.3 | Images publiziert, OpenAPI-Spec, deployt |
+| `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
 | `TypeScript/yaft` | 0.0.16 | besteht alle 90 Fälle; **erstmals importierbar publiziert** |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
+| `Java/yaft-java` | 0.1.1 | `tehw0lf/yaft-java`, CI grün; PR #2 pinnt Suite 2.0.0 (137 Tests) |
+| `workflows` | – | `java_version`-Input gemergt (#163) |
 
-**Nächster Schritt: Phase 3** (Ports: yaft-java, dann yaft-go).
+**Offen:** `yaft-java#2` und `yaft-ts#23` (Suite 2.0.0; yaft-ts mit
+R29-Fix, Merge publiziert 0.0.17 auf npm). Danach eigene Etappe: Maven
+Central (siehe Phase 3, "Stand yaft-java").
+
+Danach yaft-go.
 
 Deploy verifiziert am 2026-09-23: `GET /features/nothing` → `404` mit
 `{"error":"Feature not found"}`, HSTS gesetzt, CORS offen für alle Origins;
@@ -151,6 +158,9 @@ Befunde aus dem Code, die den Plan prägen:
 | OCI-Deployment | dauerhaft unter `yaft.tehwolf.de`, Compose-Stack in `Docker/tehwolf.de/yaft/` nach dem Traefik-Muster der anderen Services |
 | Schutz der öffentlichen API | Cloudflare-Proxy (vorhanden) gegen volumetrische Angriffe; Traefik-Ratelimit per Label, geschlüsselt auf `CF-Connecting-IP`; Key-Längenlimit und 30-Tage-Aufräumjob im Backend |
 | Ort der Port-Vorgaben | `YAFT_PORTING_PROMPT.md` gelöscht; Vorgaben stehen in Phase 3 dieses Dokuments, normative Regeln wandern mit Phase 0 nach `yaft-conformance/SPEC.md` |
+| Java: Mechanismus (2026-09-26) | JDK-Dynamic-Proxy über Interfaces, Kern ohne Abhängigkeiten; ein Spring-Modul kann später darauf aufsetzen. ByteBuddy, Annotation-Processor und Spring AOP verworfen |
+| Java: Build (2026-09-26) | Gradle (Kotlin DSL), Java 25; die CI-JDK kommt über den neuen `java_version`-Input von `tehw0lf/workflows` statt über Toolchain-Auto-Download |
+| Java: Koordinaten (2026-09-26) | `de.tehwolf:yaft`, Paket `de.tehwolf.yaft` — eigene Domain statt `io.github.tehw0lf`; Sonatype verifiziert per DNS-TXT auf `tehwolf.de` |
 
 ## Phase 0 – Konformitäts-Suite (`yaft-conformance`)
 
@@ -534,6 +544,63 @@ Für jeden Port gilt:
 
 Ergebnis: pro Sprache ein veröffentlichtes Paket, das dieselbe Suite besteht
 wie die TS-Referenz.
+
+### Stand yaft-java (2026-09-26)
+
+Unter `Java/yaft-java`, Version 0.1.0, lokal committet. Erste Etappe
+"Core + Suite grün" ist erreicht:
+
+- `Feature` (Record), `Evaluation` (Zeitlogik, Uhr als `InstantSource`),
+  `Mapping` (arbeitet auf dem `Map`/`List`-Baum, den jede JSON-Library
+  liefert — deshalb keine Laufzeit-Abhängigkeit), `LocalFeatureProvider`,
+  `LocalBooleanProvider`.
+- `YaFT.decorate(Iface, Impl)` liefert einen `Supplier`; der Toggle wird dort
+  **einmal** gelesen (R14), wie ein TS-Klassen-Decorator beim Laden.
+  `YaFT.create` ist `decorate(...).get()`. `YaFT.wrap(Iface, obj)` wertet pro
+  Aufruf aus (R15). Ein per `create` gewähltes Objekt mit Methoden-Toggles
+  kommt automatisch gewrappt zurück.
+- "Nichts" in Java: `null`, Nullwert bei Primitiven (sonst NPE beim
+  Aufrufer), abgeschlossenes Future (R18), leeres `Optional`.
+- Fehlkonfigurationen scheitern beim Dekorieren, nicht beim ersten
+  Abschalten: fehlende/statische Fallback-Methode, falscher Rückgabetyp,
+  Fallback-Klasse ohne No-Arg-Konstruktor (auch wenn der Toggle gerade an
+  ist), Annotation auf einer Methode, die das Interface nicht hat.
+- Suite gegen zwei eingebaute Bugs gegengeprüft: falsche
+  `disabledAt`-Grenze → R6 rot, Klasse pro `get()` statt einmal → beide
+  R14-Fälle rot.
+
+**Unterwegs gefunden:** Das `accessible`-Flag gehört zum einzelnen
+`Method`-Objekt, und der Proxy übergibt eine andere Kopie als
+`getMethods()`. Bei einem nicht-öffentlichen Interface schlug deshalb jeder
+Aufruf fehl — die Suite hat es gefunden, weil ihre Test-Interfaces
+package-private sind. Gilt für jeden Proxy-basierten Port.
+
+**Lücken in der Suite — geschlossen mit yaft-conformance 2.0.0** (Major,
+weil R29 die TS-Referenz rot machte):
+
+- Präzision von Sekundenbruchteilen: `Date.parse` schneidet nach drei
+  Stellen ab; yaft-java auch. Ein Port mit Nanosekunden flippt sonst eine
+  halbe Millisekunde später. Kandidat für eine Regel plus Fall.
+- Offset-Bereich: V8 nimmt `±hh:mm` bis 23:59, `java.time.ZoneOffset` nur bis
+  18:00. yaft-java rechnet den Offset selbst und lehnt >23/>59 ab. Die SPEC
+  sagt dazu nichts.
+- `boolean-shape-missing-key` prüfte im TS-Adapter nur `response == expected`,
+  nie `isEnabled` auf einem fehlenden Key. Jetzt tragen Boolean-Fälle eine
+  `isEnabled`-Map; `mapping.json` ist Format 2, und Adapter müssen unbekannte
+  Formatversionen ablehnen.
+- **R29, beim Schließen gefunden:** Die TS-Boolean-Provider gaben den
+  gespeicherten Wert zurück; `{"myToggle": "false"}` war truthy, also **an**.
+  Nur echtes `true` zählt jetzt, Nicht-Booleans fallen beim Laden weg.
+  CodeRabbit fand dazu noch, dass der API-Provider gemischte Antworten
+  komplett verwarf — in yaft-ts#23 behoben.
+
+R27/R28 bestanden TS und Java bereits unverändert; beide wurden vorher an
+V8 gemessen, nicht angenommen.
+
+**Offen für die Publish-Etappe:** Sonatype-Central-Account, DNS-TXT für
+`tehwolf.de`, GPG-Schlüssel, und ein Maven-Central-Publish-Workflow in
+`tehw0lf/workflows` (gibt es noch nicht). Danach API-Provider
+(`java.net.http`), JSON-Parsing dann vermutlich als optionales Modul.
 
 ---
 
