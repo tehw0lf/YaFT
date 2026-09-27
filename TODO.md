@@ -13,12 +13,13 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.5 | Images publiziert, OpenAPI-Spec, deployt |
+| `Go/YaFT` | 0.3.6 | Images publiziert, OpenAPI-Spec, deployt |
 | `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
 | `TypeScript/yaft` | 0.0.17 | besteht Suite 2.0.0; R29-Fix (Boolean-Shape) auf npm |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.2.2 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider; 152 Tests |
+| `Java/yaft-java` | 0.2.3 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider |
+| `Java/yaft-java-playground` | 0.1.0 | Spring Boot 4.1.1 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2 |
 | `workflows` | – | `java_version`-Input (#163), Maven-Central-Publish (#164) |
 
 **Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
@@ -30,13 +31,17 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central.
    Fingerprint `2A0351C28EB122B8946E52E39A12B17723327580`, Backup in KeePass.
    **Jeder Merge auf `main` mit neuer Version veröffentlicht** — und Central
    löscht nie. Zum Prüfen ohne Upload `maven_central_dry_run: true`.
-3. **`yaft-java-playground`** — Spring-Boot-App, die das **veröffentlichte**
-   Artefakt gegen das **echte** Backend benutzt, mit E2E-Tests; Gegenstück
-   zu `yaft-playground`. Bewusst erst nach 1 und 2: Der TS-Playground hat das
-   kaputte npm-Paket nur gefunden, weil er das publizierte Paket installiert
-   hat. Ein Beispiel per `includeBuild` hätte das nie gesehen. Offene Frage,
-   die es beantworten soll: vertragen sich YaFTs JDK-Proxies mit
-   Spring-Proxies (`@Transactional`, AOP)?
+3. ✅ **`yaft-java-playground`** (2026-09-27) — Spring Boot 4.1.1, benutzt
+   `de.tehwolf:yaft` von Central gegen das echte Backend, E2E inklusive
+   Live-Flip im Backend (Methode folgt, Klasse nicht: R14/R15). Fand vor dem
+   ersten Commit zwei stumme Fehler in 0.2.2, behoben in 0.2.3:
+   - Annotation-Werte sind Konstanten, Backend-Keys tragen die Gruppen-UUID:
+     jeder annotierte Toggle über den API-Provider war **aus**. Jetzt sucht
+     der Provider auch den Namen innerhalb der Gruppe.
+   - `YaFT.wrap` um eine schon von Spring geproxte Bean ignorierte die
+     Toggles. Jetzt Fehler beim Start. **Antwort auf die offene Frage:**
+     YaFT zuerst (`@Bean`), Spring-AOP darum herum funktioniert; umgekehrt
+     nicht.
 
 Danach yaft-go.
 
