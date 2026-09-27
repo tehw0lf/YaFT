@@ -1,6 +1,6 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-27 (Phasen 0–2 abgeschlossen, Phase 3: Java und Go fertig)
+Stand: 2026-09-27 (Phasen 0–2 abgeschlossen, Phase 3: Java und Go fertig und voll reviewt)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
@@ -13,15 +13,15 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.7 | Images publiziert, OpenAPI-Spec, deployt |
+| `Go/YaFT` | 0.3.8 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200` |
 | `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
 | `TypeScript/yaft` | 0.0.18 | besteht Suite 2.0.0; Fixes für Boolean-Shape (R29) und API-Provider auf npm |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.2.4 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider |
-| `Java/yaft-java-playground` | 0.1.1 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2 |
+| `Java/yaft-java` | 0.2.5 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider; voll reviewt |
+| `Java/yaft-java-playground` | 0.1.2 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt |
 | `Go/yaft-go` | 0.1.1 | `go get github.com/tehw0lf/yaft-go`, Suite 2.0.0, API-Provider, `yaft-shell` |
-| `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165) |
+| `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165), Android-Keystore aus Secret + eigener Attest-Job (#166) |
 
 **Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
 
@@ -63,11 +63,39 @@ geschlossener Channel (Go-Gegenstück zu R18). Semgreps Audit-Regel
   fehlgeschlagener Abruf wurde deshalb nie wiederholt. Behoben in 0.0.18.
 - `fetch-conformance.sh` brach bei unvollständiger Lock-Datei ohne Meldung ab;
   behoben in der Suite und in allen Kopien.
-- Offen, als Grundsatzfrage: Reusable Workflows auf SHA pinnen statt `@main`,
-  und Build- von Publish-Rechten trennen.
+- Abgelehnt: Reusable Workflows auf SHA pinnen und Build- von Publish-Rechten
+  trennen. **Entschieden, nicht wieder aufmachen:** `tehw0lf/workflows` sind
+  die eigenen Workflows, die Caller bleiben auf `@main` (Ruleset „main“ auf
+  dem Repo). Die Rechte sind schon getrennt, weil jeder Sub-Job nur die
+  Permissions und Secrets bekommt, die er braucht. Schlägt ein Review das
+  wieder vor, mit diesem Grund zurückweisen.
 
-Weitere Ports (Python, C#, Kotlin) nach Bedarf. Noch ohne Voll-Review:
-yaft-java und yaft-java-playground (Erstcommits direkt auf `main`).
+**Aus dem Voll-Review von yaft-java und yaft-java-playground** (2026-09-27,
+CodeRabbit plus eigener Durchgang; Review-PRs yaft-java#8,
+yaft-java-playground#2):
+
+- **Ein gelöschter Toggle blieb in jedem Client für immer an**, wenn er der
+  letzte seiner Gruppe war. `/features/{uuid}` und `/collectionHash/{uuid}`
+  antworteten auf die leere Gruppe mit `404`; die Clients behalten bei einem
+  Fehler zu Recht die alten Daten. Gegen ein echtes Backend nachgestellt,
+  betraf alle drei Ports. **Behoben im Backend 0.3.8:** die kanonische
+  (kleingeschriebene) Gruppen-UUID ohne Toggles antwortet `200` mit
+  `toggles: []` und dem SHA-256 von nichts (`e3b0c442…b855`). Ein fehlender
+  Einzel-Toggle und eine anders geschriebene UUID bleiben `404` — Letztere,
+  weil sie per `LIKE` auch bei einer vorhandenen Gruppe nichts fände. Alle
+  drei Ports nehmen `{"toggles": []}` schon als leere Gruppe an, kein
+  Port-Release nötig. Offen: ein Konformitätsfall dafür in der Suite.
+- yaft-java 0.2.5: annotierte Überladung (`run(int)` neben
+  `run(String)`) wurde still ignoriert; generisches Interface mit
+  `fallbackMethod` scheiterte beim Start (Fallback per Type-Erasure gesucht);
+  `ApiFeatureProvider` ist `AutoCloseable`; `curl`-Timeouts im
+  Conformance-Skript.
+- Playground 0.1.2: `curl`-Timeouts in `backend.sh`/`seed.sh`, ungenutztes
+  Property entfernt. Auf yaft 0.2.5 heben, sobald es auf Central ist.
+- Bekannt, nicht behoben: `/collectionHash/{key}` mit einem **vorhandenen**
+  Einzel-Key antwortet `200` ohne Body — der Handler hat keinen Zweig dafür.
+
+Weitere Ports (Python, C#, Kotlin) nach Bedarf.
 
 Deploy verifiziert am 2026-09-23: `GET /features/nothing` → `404` mit
 `{"error":"Feature not found"}`, HSTS gesetzt, CORS offen für alle Origins;

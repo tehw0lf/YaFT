@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -110,6 +111,24 @@ func startsWithUUID(key string) bool {
 	return err == nil
 }
 
+// emptyCollectionHash is the hash of a group without toggles: SHA-256 of
+// nothing, which is also what digest('', 'sha256') gives.
+const emptyCollectionHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+// isGroupKey reports whether key names a whole group: a UUID with no |name
+// suffix, in the canonical lowercase form the backend generates.
+//
+// Only such a key answers "no toggles" with 200. Deleting a group's last
+// toggle used to answer 404, which clients rightly treat as an outage and
+// keep their previous data for -- so the deleted toggle stayed on forever. A
+// missing toggle of a group stays a 404, and so does an uppercase UUID: keys
+// are stored lowercase and LIKE is case-sensitive, so it would match nothing
+// even for a group that exists, and must not read as an empty one.
+func isGroupKey(key string) bool {
+	id, err := uuid.Parse(key)
+	return err == nil && id.String() == key
+}
+
 func isURLParseable(secret string) bool {
 	_, err := url.ParseRequestURI("https://example.com/" + secret)
 	return err == nil
@@ -192,7 +211,8 @@ func setupRouter() *gin.Engine {
 				return
 			}
 
-			var collectionHash string
+			// NULL when nothing matches: string_agg over no rows.
+			var collectionHash sql.NullString
 			if err := db.Raw(`
 					SELECT encode(digest(string_agg(
                         key || ' ' || value || ' ' || COALESCE(active_at::text, '') || ' ' || COALESCE(disabled_at::text, '') || ' ' || COALESCE(array_to_string(tags, ','), ''),
@@ -209,15 +229,23 @@ func setupRouter() *gin.Engine {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Failed to calculate collection hash for provided UUID"})
 				return
 			} else {
+				hash := collectionHash.String
+				if !collectionHash.Valid {
+					if !isGroupKey(key) {
+						c.JSON(http.StatusNotFound, gin.H{"error": "No feature toggles found for provided UUID"})
+						return
+					}
+					hash = emptyCollectionHash
+				}
 				logger.WithFields(logrus.Fields{
 					"method": "GET",
 
 					"path":           "/collectionHash/" + key,
-					"collectionHash": collectionHash,
+					"collectionHash": hash,
 				}).Info("Returning collectionHash")
 
 				c.JSON(http.StatusOK, gin.H{
-					"collectionHash": collectionHash,
+					"collectionHash": hash,
 				})
 				return
 			}
@@ -264,7 +292,7 @@ func setupRouter() *gin.Engine {
 				c.JSON(http.StatusNotFound, gin.H{"error": "No feature toggles found for provided UUID"})
 				return
 			} else {
-				if len(toggles) == 0 {
+				if len(toggles) == 0 && !isGroupKey(key) {
 					c.JSON(http.StatusNotFound, gin.H{"error": "No feature toggles found for provided UUID"})
 					return
 				}

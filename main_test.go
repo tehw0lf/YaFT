@@ -354,6 +354,27 @@ func TestGetFeatureToggle(t *testing.T) {
 				},
 			},
 			{
+				// Deleting a group's last toggle must read as "no toggles",
+				// not as an error: clients keep their previous data on an
+				// error, so a 404 here kept the deleted toggle on forever.
+				name:           "get a group without toggles",
+				key:            uuid.New().String(),
+				expectedStatus: http.StatusOK,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Equal(t, []interface{}{}, resp["toggles"])
+				},
+			},
+			{
+				// Only a group answers empty: a missing toggle in an existing
+				// group is still missing.
+				name:           "get a missing toggle of a group",
+				key:            testUUID + "|missing",
+				expectedStatus: http.StatusNotFound,
+				checkResponse: func(t *testing.T, resp map[string]interface{}) {
+					assert.Contains(t, resp, "error")
+				},
+			},
+			{
 				name:           "get features by UUID",
 				key:            testUUID,
 				expectedStatus: http.StatusOK,

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,6 +89,56 @@ func TestIntegrationCollectionHash(t *testing.T) {
 		Update("value", "true").Error)
 
 	assert.NotEqual(t, first, get(), "hash must change when a toggle changes")
+}
+
+// TestIntegrationEmptyGroup covers a group whose last toggle was deleted.
+// Both endpoints used to answer 404, which clients treat as an outage: they
+// kept their previous data, so the deleted toggle stayed on forever.
+func TestIntegrationEmptyGroup(t *testing.T) {
+	testDB := setupIntegrationDB(t)
+	router := integrationRouter()
+
+	call := func(path string) (int, map[string]interface{}) {
+		req, _ := http.NewRequest("GET", path, nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		var resp map[string]interface{}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		return w.Code, resp
+	}
+
+	testUUID := uuid.New().String()
+	require.NoError(t, testDB.Create(&FeatureToggle{Key: testUUID + "|last", Value: "true", Secret: "s"}).Error)
+	code, resp := call("/collectionHash/" + testUUID)
+	require.Equal(t, http.StatusOK, code)
+	withToggle := resp["collectionHash"]
+
+	require.NoError(t, testDB.Where("key = ?", testUUID+"|last").Delete(&FeatureToggle{}).Error)
+
+	code, resp = call("/collectionHash/" + testUUID)
+	require.Equal(t, http.StatusOK, code, "an empty group is not an error")
+	// SHA-256 of nothing, what PostgreSQL's digest('', 'sha256') gives too.
+	assert.Equal(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", resp["collectionHash"])
+	assert.NotEqual(t, withToggle, resp["collectionHash"], "clients must see that the group changed")
+
+	code, resp = call("/features/" + testUUID)
+	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, []interface{}{}, resp["toggles"])
+
+	// Keys are stored lowercase and PostgreSQL's LIKE is case-sensitive, so
+	// an uppercase UUID matches nothing even for a group that has toggles.
+	// Answering it as an empty group would switch that group off without an
+	// error, so it stays a 404.
+	other := uuid.New().String()
+	require.NoError(t, testDB.Create(&FeatureToggle{Key: other + "|on", Value: "true", Secret: "s"}).Error)
+	code, _ = call("/features/" + strings.ToUpper(other))
+	assert.Equal(t, http.StatusNotFound, code)
+	code, _ = call("/collectionHash/" + strings.ToUpper(other))
+	assert.Equal(t, http.StatusNotFound, code)
+
+	// A missing toggle of an existing group is still missing.
+	code, _ = call("/collectionHash/" + other + "|missing")
+	assert.Equal(t, http.StatusNotFound, code)
 }
 
 // TestIntegrationScheduledFlip proves the pg_cron jobs from db/init.sql flip
