@@ -1,6 +1,6 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-27 (Phasen 0–2 abgeschlossen, Phase 3 läuft)
+Stand: 2026-09-27 (Phasen 0–2 abgeschlossen, Phase 3: Java und Go fertig)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
@@ -13,14 +13,15 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.6 | Images publiziert, OpenAPI-Spec, deployt |
+| `Go/YaFT` | 0.3.7 | Images publiziert, OpenAPI-Spec, deployt |
 | `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
-| `TypeScript/yaft` | 0.0.17 | besteht Suite 2.0.0; R29-Fix (Boolean-Shape) auf npm |
+| `TypeScript/yaft` | 0.0.18 | besteht Suite 2.0.0; Fixes für Boolean-Shape (R29) und API-Provider auf npm |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.2.3 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider |
-| `Java/yaft-java-playground` | 0.1.0 | Spring Boot 4.1.1 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2 |
-| `workflows` | – | `java_version`-Input (#163), Maven-Central-Publish (#164) |
+| `Java/yaft-java` | 0.2.4 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider |
+| `Java/yaft-java-playground` | 0.1.1 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2 |
+| `Go/yaft-go` | 0.1.1 | `go get github.com/tehw0lf/yaft-go`, Suite 2.0.0, API-Provider, `yaft-shell` |
+| `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165) |
 
 **Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
 
@@ -43,9 +44,30 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central.
      YaFT zuerst (`@Bean`), Spring-AOP darum herum funktioniert; umgekehrt
      nicht.
 
-Danach yaft-go.
+**yaft-go ✅ (v0.1.1, 2026-09-27)** — `github.com/tehw0lf/yaft-go`, nur
+Standardbibliothek, Suite 2.0.0 vollständig. `yaft.Func` (pro Aufruf, per
+`reflect.MakeFunc`), `yaft.Choose` (einmal); die leere Hülle erzeugt
+`cmd/yaft-shell` per `go generate`, weil Go Interfaces nicht zur Laufzeit
+implementieren kann. „Nichts“ für einen empfangbaren Channel ist ein
+geschlossener Channel (Go-Gegenstück zu R18). Semgreps Audit-Regel
+`reflect-makefunc` ist an der einen Stelle begründet unterdrückt.
 
-Danach yaft-go.
+**Aus CodeRabbits Voll-Review von yaft-go** (Erstcommit ging ohne Review auf
+`main`; Review über einen PR gegen einen leeren Basis-Commit):
+
+- `/features` mit `200` und einem Body, der keine Gruppe ist (`null`, `[]`,
+  Proxy-Fehlerseite, `{"toggles": [null]}`), ersetzte die Daten durch nichts —
+  alles aus, kein Fehler, und der gemerkte Hash hielt es so. **Betraf alle drei
+  Ports**; behoben in yaft-go 0.1.1, yaft-java 0.2.4, yaft-ts 0.0.18.
+- yaft-ts merkte sich zusätzlich den Hash **vor** dem Laden, ein
+  fehlgeschlagener Abruf wurde deshalb nie wiederholt. Behoben in 0.0.18.
+- `fetch-conformance.sh` brach bei unvollständiger Lock-Datei ohne Meldung ab;
+  behoben in der Suite und in allen Kopien.
+- Offen, als Grundsatzfrage: Reusable Workflows auf SHA pinnen statt `@main`,
+  und Build- von Publish-Rechten trennen.
+
+Weitere Ports (Python, C#, Kotlin) nach Bedarf. Noch ohne Voll-Review:
+yaft-java und yaft-java-playground (Erstcommits direkt auf `main`).
 
 Deploy verifiziert am 2026-09-23: `GET /features/nothing` → `404` mit
 `{"error":"Feature not found"}`, HSTS gesetzt, CORS offen für alle Origins;
@@ -546,7 +568,7 @@ Abnahme ist `yaft-conformance`.
 Reihenfolge:
 
 1. **yaft-java** – explizit gewünscht, Annotationen sind etabliert.
-2. **yaft-go** – eigenes Repo, kein Paket in diesem Backend-Repo. Kein
+2. ✅ **yaft-go** – eigenes Repo, kein Paket in diesem Backend-Repo. Kein
    natives Decorator-Pattern, deshalb Funktions-Wrapper oder Codegenerierung
    (siehe "Sprachen ohne Decorators"). Sinnvoll, weil das Backend Go ist und
    ein Go-Client die Lücke zwischen Server und Nutzer schließt.
