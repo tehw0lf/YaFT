@@ -11,6 +11,16 @@ Stand 2026-09-27. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
 `https://yaft.tehwolf.de` läuft auf der OCI-Instanz. yaft-java besteht die
 Suite vollständig und ist seit 0.2.2 auf Maven Central.
 
+**Als Nächstes (Stand 2026-09-27 abends):**
+
+1. **yaft-java#9 (0.2.5) fertig reviewen und mergen.** CI grün, 167 Tests.
+   CodeRabbit hat alle Commits bis auf den letzten (`ac4c642`) gesehen —
+   Rate-Limit. Also `@coderabbitai review`, Befunde prüfen, dann mergen.
+   **Der Merge veröffentlicht auf Maven Central, und Central löscht nie.**
+2. Danach yaft-java#8 (Review-PR) schließen, `review/*`-Branches löschen.
+3. yaft-java-playground auf yaft 0.2.5 heben (CI zieht nur von Central).
+4. Konformitätsfall „leere Gruppe“ in yaft-conformance.
+
 | Repo | Version | Stand |
 |---|---|---|
 | `Go/YaFT` | 0.3.8 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200` |
@@ -18,8 +28,8 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central.
 | `TypeScript/yaft` | 0.0.18 | besteht Suite 2.0.0; Fixes für Boolean-Shape (R29) und API-Provider auf npm |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.2.5 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider; voll reviewt |
-| `Java/yaft-java-playground` | 0.1.2 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt |
+| `Java/yaft-java` | 0.2.4 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider; voll reviewt, Fixes als 0.2.5 in #9 (offen) |
+| `Java/yaft-java-playground` | 0.1.2 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt, Fixes gemergt (#3) |
 | `Go/yaft-go` | 0.1.1 | `go get github.com/tehw0lf/yaft-go`, Suite 2.0.0, API-Provider, `yaft-shell` |
 | `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165), Android-Keystore aus Secret + eigener Attest-Job (#166) |
 
@@ -84,14 +94,20 @@ yaft-java-playground#2):
   Einzel-Toggle und eine anders geschriebene UUID bleiben `404` — Letztere,
   weil sie per `LIKE` auch bei einer vorhandenen Gruppe nichts fände. Alle
   drei Ports nehmen `{"toggles": []}` schon als leere Gruppe an, kein
-  Port-Release nötig. Offen: ein Konformitätsfall dafür in der Suite.
-- yaft-java 0.2.5: annotierte Überladung (`run(int)` neben
+  Port-Release nötig. Auf `yaft.tehwolf.de` seit 2026-09-27 21:01 UTC
+  verifiziert. Offen: ein Konformitätsfall dafür in der Suite.
+- yaft-java 0.2.5 (#9, noch offen): annotierte Überladung (`run(int)` neben
   `run(String)`) wurde still ignoriert; generisches Interface mit
   `fallbackMethod` scheiterte beim Start (Fallback per Type-Erasure gesucht);
   `ApiFeatureProvider` ist `AutoCloseable`; `curl`-Timeouts im
-  Conformance-Skript.
-- Playground 0.1.2: `curl`-Timeouts in `backend.sh`/`seed.sh`, ungenutztes
-  Property entfernt. Auf yaft 0.2.5 heben, sobald es auf Central ist.
+  Conformance-Skript. CodeRabbit fand in drei Runden Randfälle der
+  Generics-Behandlung (geerbtes `save(String)`, zusätzliche Überladung
+  `save(Integer)`, `Base<T>.save(T)` in einer Unterklasse überschrieben);
+  gelöst, indem die Typvariablen gegen die Supertypen der Implementierung
+  aufgelöst und Signaturen überall so verglichen werden.
+- Playground 0.1.2 (gemergt): `curl`-Timeouts in `backend.sh`/`seed.sh`,
+  ungenutztes Property entfernt. Auf yaft 0.2.5 heben, sobald es auf
+  Central ist.
 - Bekannt, nicht behoben: `/collectionHash/{key}` mit einem **vorhandenen**
   Einzel-Key antwortet `200` ohne Body — der Handler hat keinen Zweig dafür.
 
