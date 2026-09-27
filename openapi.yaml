@@ -18,7 +18,7 @@ openapi: 3.1.0
 
 info:
   title: YaFT
-  version: 0.3.7
+  version: 0.3.8
   summary: Yet another Feature Toggle - a small feature toggle API.
   description: |
     Feature toggles are grouped by a UUID prefix: a key has the form
@@ -209,6 +209,14 @@ paths:
         - an exact key returns that toggle as a flat object;
         - a bare UUID returns every toggle of that group under `toggles`.
 
+        A group without toggles -- for example after its last toggle was
+        deleted -- is `200` with `toggles: []`, not a `404`: clients keep
+        their previous data on an error, so a `404` would keep a deleted
+        toggle on. This applies to the canonical lowercase UUID only; a
+        missing toggle (`uuid|name`) and a UUID in another spelling stay
+        `404`, the latter because keys are stored lowercase and would match
+        nothing even for an existing group.
+
         Both envelopes use the same lowercase field names. Up to 0.1.6 the
         group form spelled them `Key`, `Value`, `ActiveAt`, `DisabledAt` and
         `Tags`, because the response DTO carried no JSON tags. A client that
@@ -290,6 +298,12 @@ paths:
         A SHA-256 over every toggle in the group. A client polls this and only
         refetches the group when it changed, instead of pulling all toggles on
         every check.
+
+        A group without toggles hashes to the SHA-256 of nothing,
+        `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`,
+        with `200` -- so a client sees the change when the last toggle is
+        deleted. As with `/features/{key}`, only the canonical lowercase UUID
+        answers this way.
 
         No authentication.
       operationId: getCollectionHash
