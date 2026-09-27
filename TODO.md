@@ -15,11 +15,11 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central.
 |---|---|---|
 | `Go/YaFT` | 0.3.7 | Images publiziert, OpenAPI-Spec, deployt |
 | `yaft-conformance` | 2.0.0 | 30 Regeln, 103 Fälle; R27–R29 aus dem Java-Port |
-| `TypeScript/yaft` | 0.0.17 | besteht Suite 2.0.0; R29-Fix (Boolean-Shape) auf npm |
+| `TypeScript/yaft` | 0.0.18 | besteht Suite 2.0.0; Fixes für Boolean-Shape (R29) und API-Provider auf npm |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.2.3 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider |
-| `Java/yaft-java-playground` | 0.1.0 | Spring Boot 4.1.1 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2 |
+| `Java/yaft-java` | 0.2.4 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider |
+| `Java/yaft-java-playground` | 0.1.1 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2 |
 | `Go/yaft-go` | 0.1.1 | `go get github.com/tehw0lf/yaft-go`, Suite 2.0.0, API-Provider, `yaft-shell` |
 | `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165) |
 
