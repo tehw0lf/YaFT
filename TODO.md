@@ -7,38 +7,52 @@ Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 
 ## Hier weitermachen
 
-Stand 2026-09-28. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
+Stand 2026-09-28 abends. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
 `https://yaft.tehwolf.de` läuft auf der OCI-Instanz. yaft-java besteht die
-Suite vollständig und ist seit 0.2.2 auf Maven Central.
+Suite vollständig und ist seit 0.2.2 auf Maven Central (aktuell 0.2.6).
 
-**Als Nächstes (Stand 2026-09-28):**
+**Als Nächstes (Stand 2026-09-28 abends):**
 
-1. **Suite 3.0.0 in den Ports mergen:** yaft-ts#27 (0.0.19), yaft-go#3
-   (0.1.2), yaft-java#10 (0.2.6). Reviewen, dann mergen. **yaft-java#10
-   veröffentlicht auf Maven Central, und Central löscht nie.**
-2. Nach dem Merge prüfen, dass der Push-Lauf auf `main` wirklich startet
-   (siehe unten, 0.2.5) und 0.2.6 auf Central ankommt.
-3. yaft-java-playground auf yaft 0.2.6 heben (CI zieht nur von Central).
+1. yaft-java-playground#4 (yaft 0.2.6, Playground 0.1.3) reviewen und
+   mergen. Build und 3/3 E2E gegen echtes Backend lokal grün.
+2. **yaft-ts: Refresh-Ergebnis melden (R32).** `getCollectionHash` loggt
+   einen abgelehnten Refresh nur und gibt `void` zurück; der Adapter kann
+   R32 deshalb nicht prüfen und sagt das. Vorschlag: `Promise<boolean>`
+   (geladen / nicht geladen) oder ein eigenes `refresh()`, das wirft, neben
+   dem stillen Aufruf für Timer. Danach im Adapter gegen `rejected` prüfen.
+3. Optional: `workflow_dispatch` in die `build.yml` der Ports, damit ein
+   verlorenes Push-Event (wie bei yaft-java#9) ohne eigenen PR nachgeholt
+   werden kann.
+4. Backend-Nebenbefund (unten): `/collectionHash/{key}` mit vorhandenem
+   Einzel-Key antwortet `200` ohne Body.
 
-Erledigt am 2026-09-28: yaft-java#9 gemergt (CodeRabbit ohne Befunde auf
-`ac4c642`), Review-PR yaft-java#8 geschlossen, `review/*`-Branches gelöscht,
-Konformitätsfall „leere Gruppe“ als R30/R31 in Suite 3.0.0 (yaft-conformance#3).
+Erledigt am 2026-09-28:
+
+- yaft-java#9 gemergt, Review-PR yaft-java#8 geschlossen, `review/*`-Branches
+  gelöscht.
+- Konformitätsfall „leere Gruppe“: Suite 3.0.0 (yaft-conformance#3) mit R30
+  und R31, dann 4.0.0 (#4) mit R32 und dem Feld `rejected`, nach einem
+  CodeRabbit-Befund auf yaft-go#3 (Adapter loggte den Refresh-Fehler nur).
+- Ports auf Suite 4.0.0 und veröffentlicht: yaft-ts 0.0.20 (npm), yaft-go
+  0.1.2 (Tag), yaft-java 0.2.6 (Maven Central). Go und Java prüfen R32,
+  yaft-ts kann es noch nicht (siehe 2.).
 
 **yaft-java 0.2.5 gibt es nicht.** Beim Merge von #9 hat GitHub kein
 Push-Event erzeugt, der Build auf `main` lief nie, Central blieb auf 0.2.4.
 `build.yml` hat keinen `workflow_dispatch`, ein Nachholen hätte einen eigenen
-PR gebraucht. Entschieden: überspringen; die #9-Fixes erscheinen mit 0.2.6.
+PR gebraucht. Entschieden: überspringen; die #9-Fixes erschienen mit 0.2.6.
+Beim Merge von #10 kam das Push-Event normal.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.8 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200` |
-| `yaft-conformance` | 3.0.0 | 32 Regeln, 114 Fälle; R30 (Refresh ersetzt oder scheitert ganz) und R31 (Backend: leere Gruppe `200`), Mapping-Format 3 mit `held`/`retry` |
-| `TypeScript/yaft` | 0.0.18 | besteht Suite 2.0.0; Fixes für Boolean-Shape (R29) und API-Provider auf npm; Suite 3.0.0 als 0.0.19 in yaft-ts#27 (offen) |
+| `Go/YaFT` | 0.3.10 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200` |
+| `yaft-conformance` | 4.0.0 | 33 Regeln, 114 Fälle; R30 (Refresh ersetzt oder scheitert ganz), R31 (Backend: leere Gruppe `200`), R32 (Refresh meldet sein Ergebnis, SHOULD); Mapping-Format 4 mit `held`/`rejected`/`retry` |
+| `TypeScript/yaft` | 0.0.20 | auf npm, besteht Suite 4.0.0 (R32 nicht prüfbar, siehe oben); Fixes für Boolean-Shape (R29) und API-Provider |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
-| `Java/yaft-java` | 0.2.4 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 2.0.0, API-Provider; voll reviewt, Fixes aus #9 (gemergt, nie veröffentlicht) + Suite 3.0.0 als 0.2.6 in #10 (offen) |
-| `Java/yaft-java-playground` | 0.1.2 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt, Fixes gemergt (#3) |
-| `Go/yaft-go` | 0.1.1 | `go get github.com/tehw0lf/yaft-go`, Suite 2.0.0, API-Provider, `yaft-shell`; Suite 3.0.0 als 0.1.2 in #3 (offen) |
+| `Java/yaft-java` | 0.2.6 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 4.0.0 inkl. R32, API-Provider; voll reviewt, Fixes aus #9 (0.2.5 übersprungen) |
+| `Java/yaft-java-playground` | 0.1.2 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt; yaft 0.2.6 als 0.1.3 in #4 (offen) |
+| `Go/yaft-go` | 0.1.2 | `go get github.com/tehw0lf/yaft-go`, Suite 4.0.0 inkl. R32, API-Provider, `yaft-shell` |
 | `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165), Android-Keystore aus Secret + eigener Attest-Job (#166) |
 
 **Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
@@ -111,7 +125,7 @@ yaft-java-playground#2):
   und laufen durch den echten API-Provider gegen ein Stub-Backend; `retry`
   (CodeRabbit-Hinweis) prüft denselben Hash nach einem abgelehnten Body. Alle
   drei Ports bestanden ohne Bibliotheksänderung.
-- yaft-java #9 (gemergt, erscheint als 0.2.6): annotierte Überladung (`run(int)` neben
+- yaft-java #9 (gemergt, erschienen mit 0.2.6): annotierte Überladung (`run(int)` neben
   `run(String)`) wurde still ignoriert; generisches Interface mit
   `fallbackMethod` scheiterte beim Start (Fallback per Type-Erasure gesucht);
   `ApiFeatureProvider` ist `AutoCloseable`; `curl`-Timeouts im
@@ -121,8 +135,8 @@ yaft-java-playground#2):
   gelöst, indem die Typvariablen gegen die Supertypen der Implementierung
   aufgelöst und Signaturen überall so verglichen werden.
 - Playground 0.1.2 (gemergt): `curl`-Timeouts in `backend.sh`/`seed.sh`,
-  ungenutztes Property entfernt. Auf yaft 0.2.6 heben, sobald es auf
-  Central ist.
+  ungenutztes Property entfernt. Auf yaft 0.2.6 gehoben in #4 (offen); 0.2.6 ist
+  seit 2026-09-28 auf Central.
 - Bekannt, nicht behoben: `/collectionHash/{key}` mit einem **vorhandenen**
   Einzel-Key antwortet `200` ohne Body — der Handler hat keinen Zweig dafür.
 
