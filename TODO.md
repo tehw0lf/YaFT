@@ -13,11 +13,14 @@ Suite vollständig und ist seit 0.2.2 auf Maven Central (aktuell 0.2.6).
 
 **Als Nächstes (Stand 2026-09-29):**
 
-1. **yaft-ts: Refresh-Ergebnis melden (R32).** `getCollectionHash` loggt
-   einen abgelehnten Refresh nur und gibt `void` zurück; der Adapter kann
-   R32 deshalb nicht prüfen und sagt das. Vorschlag: `Promise<boolean>`
-   (geladen / nicht geladen) oder ein eigenes `refresh()`, das wirft, neben
-   dem stillen Aufruf für Timer. Danach im Adapter gegen `rejected` prüfen.
+1. **yaft-ts#29 reviewen und mergen (0.0.21, R32).** Beide API-Provider
+   haben jetzt `refresh(): Promise<boolean>` (neue Daten / unverändert,
+   wirft bei Fehler), `getCollectionHash` bleibt der stille Aufruf für
+   Timer, wie `refreshQuietly` in yaft-java. Der Adapter prüft `rejected`.
+   Nebenbei: eine `/collectionHash`-Antwort ohne Hash wurde als `undefined`
+   gemerkt und passte dann auf jede weitere solche Antwort; das Refreshen
+   hörte still auf. Jetzt scheitert der Refresh. Der Merge veröffentlicht
+   auf npm.
 2. Optional: `workflow_dispatch` in die `build.yml` der Ports, damit ein
    verlorenes Push-Event (wie bei yaft-java#9) ohne eigenen PR nachgeholt
    werden kann.
@@ -41,7 +44,7 @@ Erledigt am 2026-09-28:
   CodeRabbit-Befund auf yaft-go#3 (Adapter loggte den Refresh-Fehler nur).
 - Ports auf Suite 4.0.0 und veröffentlicht: yaft-ts 0.0.20 (npm), yaft-go
   0.1.2 (Tag), yaft-java 0.2.6 (Maven Central). Go und Java prüfen R32,
-  yaft-ts kann es noch nicht (siehe 2.).
+  yaft-ts ab 0.0.21 (siehe 1.).
 
 **yaft-java 0.2.5 gibt es nicht.** Beim Merge von #9 hat GitHub kein
 Push-Event erzeugt, der Build auf `main` lief nie, Central blieb auf 0.2.4.
@@ -53,7 +56,7 @@ Beim Merge von #10 kam das Push-Event normal.
 |---|---|---|
 | `Go/YaFT` | 0.3.11 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200`; `/collectionHash` nur für Gruppen |
 | `yaft-conformance` | 4.0.0 | 33 Regeln, 114 Fälle; R30 (Refresh ersetzt oder scheitert ganz), R31 (Backend: leere Gruppe `200`), R32 (Refresh meldet sein Ergebnis, SHOULD); Mapping-Format 4 mit `held`/`rejected`/`retry` |
-| `TypeScript/yaft` | 0.0.20 | auf npm, besteht Suite 4.0.0 (R32 nicht prüfbar, siehe oben); Fixes für Boolean-Shape (R29) und API-Provider |
+| `TypeScript/yaft` | 0.0.20 | auf npm, besteht Suite 4.0.0 (R32 ab 0.0.21 in #29, offen); Fixes für Boolean-Shape (R29) und API-Provider |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
 | `Java/yaft-java` | 0.2.6 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 4.0.0 inkl. R32, API-Provider; voll reviewt, Fixes aus #9 (0.2.5 übersprungen) |
