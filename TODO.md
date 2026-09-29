@@ -1,6 +1,6 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-28 (Phasen 0–2 abgeschlossen, Phase 3: Java und Go fertig und voll reviewt)
+Stand: 2026-09-29 (Phasen 0–2 abgeschlossen, Phase 3: Java und Go fertig und voll reviewt)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
@@ -11,20 +11,26 @@ Stand 2026-09-28 abends. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuf
 `https://yaft.tehwolf.de` läuft auf der OCI-Instanz. yaft-java besteht die
 Suite vollständig und ist seit 0.2.2 auf Maven Central (aktuell 0.2.6).
 
-**Als Nächstes (Stand 2026-09-28 abends):**
+**Als Nächstes (Stand 2026-09-29):**
 
-1. yaft-java-playground#4 (yaft 0.2.6, Playground 0.1.3) reviewen und
-   mergen. Build und 3/3 E2E gegen echtes Backend lokal grün.
-2. **yaft-ts: Refresh-Ergebnis melden (R32).** `getCollectionHash` loggt
+1. **yaft-ts: Refresh-Ergebnis melden (R32).** `getCollectionHash` loggt
    einen abgelehnten Refresh nur und gibt `void` zurück; der Adapter kann
    R32 deshalb nicht prüfen und sagt das. Vorschlag: `Promise<boolean>`
    (geladen / nicht geladen) oder ein eigenes `refresh()`, das wirft, neben
    dem stillen Aufruf für Timer. Danach im Adapter gegen `rejected` prüfen.
-3. Optional: `workflow_dispatch` in die `build.yml` der Ports, damit ein
+2. Optional: `workflow_dispatch` in die `build.yml` der Ports, damit ein
    verlorenes Push-Event (wie bei yaft-java#9) ohne eigenen PR nachgeholt
    werden kann.
-4. Backend-Nebenbefund (unten): `/collectionHash/{key}` mit vorhandenem
-   Einzel-Key antwortet `200` ohne Body.
+
+Erledigt am 2026-09-29:
+
+- yaft-java-playground#4 gemergt (yaft 0.2.6, Playground 0.1.3).
+- Backend 0.3.11: `/collectionHash/{key}` nimmt nur noch die kanonische
+  Gruppen-UUID an, wie die OpenAPI-Spec es sagt. Ein vorhandener Einzel-Key
+  bekam bisher `200` ohne Body (der Handler hatte keinen Zweig dafür), ein
+  Teil-Key wie `<uuid>|fo` den Hash aller Keys mit diesem Präfix. Beides
+  antwortet jetzt `404`. Die Ports rufen den Endpoint nur mit der Gruppen-UUID
+  auf, kein Port-Release nötig.
 
 Erledigt am 2026-09-28:
 
@@ -45,13 +51,13 @@ Beim Merge von #10 kam das Push-Event normal.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.10 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200` |
+| `Go/YaFT` | 0.3.11 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200`; `/collectionHash` nur für Gruppen |
 | `yaft-conformance` | 4.0.0 | 33 Regeln, 114 Fälle; R30 (Refresh ersetzt oder scheitert ganz), R31 (Backend: leere Gruppe `200`), R32 (Refresh meldet sein Ergebnis, SHOULD); Mapping-Format 4 mit `held`/`rejected`/`retry` |
 | `TypeScript/yaft` | 0.0.20 | auf npm, besteht Suite 4.0.0 (R32 nicht prüfbar, siehe oben); Fixes für Boolean-Shape (R29) und API-Provider |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
 | `Docker/tehwolf.de/yaft` | – | läuft auf `yaft.tehwolf.de` |
 | `Java/yaft-java` | 0.2.6 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 4.0.0 inkl. R32, API-Provider; voll reviewt, Fixes aus #9 (0.2.5 übersprungen) |
-| `Java/yaft-java-playground` | 0.1.2 | Spring Boot 4.1.1 mit yaft 0.2.4 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt; yaft 0.2.6 als 0.1.3 in #4 (offen) |
+| `Java/yaft-java-playground` | 0.1.3 | Spring Boot 4.1.1 mit yaft 0.2.6 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt |
 | `Go/yaft-go` | 0.1.2 | `go get github.com/tehw0lf/yaft-go`, Suite 4.0.0 inkl. R32, API-Provider, `yaft-shell` |
 | `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165), Android-Keystore aus Secret + eigener Attest-Job (#166) |
 
@@ -135,10 +141,10 @@ yaft-java-playground#2):
   gelöst, indem die Typvariablen gegen die Supertypen der Implementierung
   aufgelöst und Signaturen überall so verglichen werden.
 - Playground 0.1.2 (gemergt): `curl`-Timeouts in `backend.sh`/`seed.sh`,
-  ungenutztes Property entfernt. Auf yaft 0.2.6 gehoben in #4 (offen); 0.2.6 ist
-  seit 2026-09-28 auf Central.
-- Bekannt, nicht behoben: `/collectionHash/{key}` mit einem **vorhandenen**
-  Einzel-Key antwortet `200` ohne Body — der Handler hat keinen Zweig dafür.
+  ungenutztes Property entfernt. Auf yaft 0.2.6 gehoben in #4 (0.1.3, gemergt
+  2026-09-29).
+- ~~`/collectionHash/{key}` mit einem vorhandenen Einzel-Key antwortet `200`
+  ohne Body~~ — behoben in 0.3.11 (siehe oben).
 
 Weitere Ports (Python, C#, Kotlin) nach Bedarf.
 
