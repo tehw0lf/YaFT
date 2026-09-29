@@ -417,6 +417,42 @@ func TestGetFeatureToggle(t *testing.T) {
 	})
 }
 
+// TestCollectionHashRejectsNonGroupKeys covers the keys that are turned away
+// before the PostgreSQL-only query, so SQLite can serve them. An existing
+// single key used to get 200 with an empty body.
+func TestCollectionHashRejectsNonGroupKeys(t *testing.T) {
+	testDB := setupTestDB(t)
+
+	withTestDB(testDB, func() {
+		router := setupTestRouter(testDB)
+
+		testUUID := uuid.New().String()
+		require.NoError(t, testDB.Create(&FeatureToggle{
+			Key:    testUUID + "|testfeature",
+			Value:  "true",
+			Secret: "test-secret",
+		}).Error)
+
+		for name, key := range map[string]string{
+			"existing single key": testUUID + "|testfeature",
+			"partial key":         testUUID + "|test",
+			"uppercase group":     strings.ToUpper(testUUID),
+			"no uuid":             "testfeature",
+		} {
+			t.Run(name, func(t *testing.T) {
+				req, _ := http.NewRequest("GET", "/collectionHash/"+key, nil)
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusNotFound, w.Code)
+				var response map[string]interface{}
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+				assert.Contains(t, response, "error")
+			})
+		}
+	})
+}
+
 func TestActivateFeatureToggle(t *testing.T) {
 	testDB := setupTestDB(t)
 	

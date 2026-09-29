@@ -139,6 +139,13 @@ func TestIntegrationEmptyGroup(t *testing.T) {
 	// A missing toggle of an existing group is still missing.
 	code, _ = call("/collectionHash/" + other + "|missing")
 	assert.Equal(t, http.StatusNotFound, code)
+
+	// Only a group has a hash. An existing single key used to get 200 with
+	// no body at all, and a partial key the hash of whatever it prefixed.
+	code, _ = call("/collectionHash/" + other + "|on")
+	assert.Equal(t, http.StatusNotFound, code)
+	code, _ = call("/collectionHash/" + other + "|o")
+	assert.Equal(t, http.StatusNotFound, code)
 }
 
 // TestIntegrationScheduledFlip proves the pg_cron jobs from db/init.sql flip

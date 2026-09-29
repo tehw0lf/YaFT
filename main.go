@@ -204,52 +204,46 @@ func setupRouter() *gin.Engine {
 			"key":    key,
 		}).Info("Received GET request for collectionHash")
 
-		var toggle FeatureToggle
-		if err := db.First(&toggle, "key = ?", key).Error; err != nil {
-			if !startsWithUUID(key) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Feature not found"})
-				return
-			}
-
-			// NULL when nothing matches: string_agg over no rows.
-			var collectionHash sql.NullString
-			if err := db.Raw(`
-					SELECT encode(digest(string_agg(
-                        key || ' ' || value || ' ' || COALESCE(active_at::text, '') || ' ' || COALESCE(disabled_at::text, '') || ' ' || COALESCE(array_to_string(tags, ','), ''),
-                        ' ' ORDER BY key), 'sha256'::text), 'hex')
-					FROM feature_toggles WHERE key LIKE ?;
-				`, key+"%").Scan(&collectionHash).Error; err != nil {
-				logger.WithFields(logrus.Fields{
-					"method": "GET",
-					"path":   "/collectionHash/" + key,
-					"key":    key,
-					"error":  err.Error(),
-				}).Error("Failed to calculate collection hash")
-
-				c.JSON(http.StatusNotFound, gin.H{"error": "Failed to calculate collection hash for provided UUID"})
-				return
-			} else {
-				hash := collectionHash.String
-				if !collectionHash.Valid {
-					if !isGroupKey(key) {
-						c.JSON(http.StatusNotFound, gin.H{"error": "No feature toggles found for provided UUID"})
-						return
-					}
-					hash = emptyCollectionHash
-				}
-				logger.WithFields(logrus.Fields{
-					"method": "GET",
-
-					"path":           "/collectionHash/" + key,
-					"collectionHash": hash,
-				}).Info("Returning collectionHash")
-
-				c.JSON(http.StatusOK, gin.H{
-					"collectionHash": hash,
-				})
-				return
-			}
+		// Only a group has a hash. A single key used to find its toggle and
+		// fall through without a response (200, empty body), and a partial
+		// key such as "<uuid>|fo" hashed whatever its prefix matched.
+		if !isGroupKey(key) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No feature toggles found for provided UUID"})
+			return
 		}
+
+		// NULL when nothing matches: string_agg over no rows.
+		var collectionHash sql.NullString
+		if err := db.Raw(`
+				SELECT encode(digest(string_agg(
+                    key || ' ' || value || ' ' || COALESCE(active_at::text, '') || ' ' || COALESCE(disabled_at::text, '') || ' ' || COALESCE(array_to_string(tags, ','), ''),
+                    ' ' ORDER BY key), 'sha256'::text), 'hex')
+				FROM feature_toggles WHERE key LIKE ?;
+			`, key+"%").Scan(&collectionHash).Error; err != nil {
+			logger.WithFields(logrus.Fields{
+				"method": "GET",
+				"path":   "/collectionHash/" + key,
+				"key":    key,
+				"error":  err.Error(),
+			}).Error("Failed to calculate collection hash")
+
+			c.JSON(http.StatusNotFound, gin.H{"error": "Failed to calculate collection hash for provided UUID"})
+			return
+		}
+
+		hash := collectionHash.String
+		if !collectionHash.Valid {
+			hash = emptyCollectionHash
+		}
+		logger.WithFields(logrus.Fields{
+			"method":         "GET",
+			"path":           "/collectionHash/" + key,
+			"collectionHash": hash,
+		}).Info("Returning collectionHash")
+
+		c.JSON(http.StatusOK, gin.H{
+			"collectionHash": hash,
+		})
 	})
 
 	router.GET("/features/:key", func(c *gin.Context) {
