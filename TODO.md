@@ -1,29 +1,19 @@
 # YaFT – Roadmap
 
-Stand: 2026-09-29 (Phasen 0–2 abgeschlossen, Phase 3: TS, Java, Go und Python prüfen die ganze Suite 5.0.0)
+Stand: 2026-09-30 (Phasen 0–2 abgeschlossen, Phase 3: TS, Java, Go und Python prüfen die ganze Suite 5.0.0 und sind veröffentlicht)
 
 Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem
 (Go-Backend, `@tehw0lf/yaft` für TypeScript, `yaft-admin`, weitere Sprach-Ports).
 
 ## Hier weitermachen
 
-Stand 2026-09-29. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
-`https://yaft.tehwolf.de` läuft auf der OCI-Instanz. yaft-java besteht die
-Suite vollständig und ist seit 0.2.2 auf Maven Central (aktuell 0.2.7).
+Stand 2026-09-30. **Phase 0 und Phase 2 sind abgeschlossen, Phase 3 läuft.**
+`https://yaft.tehwolf.de` läuft auf der OCI-Instanz. Alle vier Ports bestehen
+die Suite 5.0.0 und sind veröffentlicht: npm, Maven Central, Go-Modul, PyPI.
 
-**Als Nächstes (Stand 2026-09-29):**
-
-1. **yaft-python, Etappe 2: API-Provider und PyPI.** Über `urllib`, ohne
-   Abhängigkeit, mit `refresh()` (meldet, R32) und einem stillen Aufruf für
-   Timer; die Refresh-Fälle (R30) laufen dann durch ihn statt durch
-   `LocalFeatureProvider.load`. PyPI: `tehw0lf/workflows` setzt nur den Tag,
-   veröffentlicht wird wie bei wlgen über eine eigene `publish.yml`
-   (`workflow_run`, `uv publish` per OIDC). **Vorher von Hand:** Trusted
-   Publisher auf pypi.org anlegen (Projekt `yaft`, Repo
-   `tehw0lf/yaft-python`, Workflow `publish.yml`).
-2. `setup-workflows`-Skill: `validate-caller.py` prüft jeden `run …`-Wert
-   gegen `package.json`, auch bei `tool: uv`, wo `uv run` einen Befehl
-   ausführt. Meldet dort fälschlich BROKEN.
+**Als Nächstes (Stand 2026-09-30):** Nichts steht fest. Kandidaten:
+weitere Ports nach Bedarf (Rust, PHP; siehe Phase 3) und die optionale
+OCI-Security-List-Härtung (siehe „Offene Fragen“).
 
 **Entschieden 2026-09-29, gilt für alle Ports:** Ein Port ist minimal und
 nutzt die Mittel seiner Sprache. Er ahmt das Verhalten der Referenz nicht
@@ -31,6 +21,26 @@ nach, wo die Spezifikation nichts verlangt (Anlass: yaft-python hatte
 JavaScripts `String()` und `Date.parse`-Bereich nachgebaut). Wo zwei Ports
 nur zufällig übereinstimmen, gehört eine Regel in die Suite, nicht
 Nachahmung in den Port.
+
+Erledigt am 2026-09-30:
+
+- **yaft-python 0.2.0 auf PyPI** (yaft-python#2, `pip install yaft`):
+  `APIFeatureProvider` über `urllib`, ohne Abhängigkeit. `refresh()` meldet
+  `True`/`False` oder wirft `RefreshError` (R32), `refresh_quietly()` loggt
+  für Timer. Keine Redirects, Body-Limit, ein Timeout, der auch einen
+  tröpfelnden Body abbricht, Suche per Name in der Gruppe wie in Go/Java.
+  Die Refresh-Fälle der Suite laufen jetzt über HTTP durch den Provider,
+  gegen ein lokales Test-Backend. Veröffentlicht wird über eine eigene
+  `publish.yml` (`workflow_run` auf `Build`, Trusted Publishing, Environment
+  `pypi`), weil ein Trusted Publisher keinen fremden Reusable Workflow nennen
+  kann.
+- **Cloudflare vor `yaft.tehwolf.de` blockt den User-Agent `Python-urllib/*`
+  mit 403.** Erst der Rauchtest gegen das Live-Backend fand das; ohne ihn wäre
+  jeder Refresh gescheitert. yaft-python sendet jetzt
+  `yaft-python/<version>`. Die anderen Ports sind nicht betroffen: Go-, Java-,
+  Node- und `requests`-Standard-UAs und ein leerer UA bekommen `200`.
+- `setup-workflows`: der falsche BROKEN-Befund bei `tool: uv` war schon mit
+  claude-skills#10 (Plugin 2.0.2) behoben.
 
 Erledigt am 2026-09-29:
 
@@ -91,7 +101,7 @@ verlorenes Push-Event wird wie hier mit der nächsten Version nachgeholt.
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.13 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200`; `/collectionHash` nur für Gruppen |
+| `Go/YaFT` | 0.3.14 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200`; `/collectionHash` nur für Gruppen |
 | `yaft-conformance` | 5.0.0 | 34 Regeln, 119 Fälle; R33 (Key und Value nur als String, keine Umwandlung); R30 (Refresh ersetzt oder scheitert ganz), R31 (Backend: leere Gruppe `200`), R32 (Refresh meldet sein Ergebnis, SHOULD); Mapping-Format 4 mit `held`/`rejected`/`retry` |
 | `TypeScript/yaft` | 0.0.22 | auf npm, besteht Suite 5.0.0 inkl. R32 (`refresh()`); Fixes für Boolean-Shape (R29) und API-Provider |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen yaft.tehwolf.de |
@@ -99,7 +109,7 @@ verlorenes Push-Event wird wie hier mit der nächsten Version nachgeholt.
 | `Java/yaft-java` | 0.2.7 | **auf Maven Central** (`de.tehwolf:yaft`), Suite 5.0.0 inkl. R32, API-Provider; voll reviewt, Fixes aus #9 (0.2.5 übersprungen) |
 | `Java/yaft-java-playground` | 0.1.3 | Spring Boot 4.1.1 mit yaft 0.2.6 gegen echtes Backend, CI grün; fand zwei Bugs in 0.2.2; voll reviewt |
 | `Go/yaft-go` | 0.1.3 | `go get github.com/tehw0lf/yaft-go`, Suite 5.0.0 inkl. R32, API-Provider, `yaft-shell` |
-| `Python/yaft-python` | 0.1.0 | Suite 5.0.0, Kern, Local-Provider, Decorator; API-Provider und PyPI folgen |
+| `Python/yaft-python` | 0.2.0 | **auf PyPI** (`yaft`), Suite 5.0.0 inkl. R32, Kern, Local- und API-Provider, Decorator; eigener User-Agent (Cloudflare blockt `Python-urllib`) |
 | `workflows` | – | `java_version` (#163), Maven-Central-Publish (#164), `tool: go` (#165), Android-Keystore aus Secret + eigener Attest-Job (#166) |
 
 **Nächste Schritte, in dieser Reihenfolge** (entschieden 2026-09-26):
@@ -693,7 +703,7 @@ Reihenfolge:
    (siehe "Sprachen ohne Decorators"). Sinnvoll, weil das Backend Go ist und
    ein Go-Client die Lücke zwischen Server und Nutzer schließt.
 3. ✅ **yaft-python** – Etappe 1 (Kern, Local-Provider, Decorator) am
-   2026-09-29; API-Provider und PyPI folgen.
+   2026-09-29, Etappe 2 (API-Provider, PyPI 0.2.0) am 2026-09-30.
 4. Weitere Kandidaten nach Bedarf: Rust, PHP. Kotlin nutzt yaft-java
    direkt (höchstens ein Beispiel im Java-Playground); C# erst mit einem
    Abnehmer, `tehw0lf/workflows` hat keinen NuGet-Publish.
