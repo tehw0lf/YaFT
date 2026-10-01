@@ -1,23 +1,22 @@
-# YaFT – Roadmap
+# YaFT – Der nächste Port
 
-Stand: 2026-10-01 (Phasen 0–2 abgeschlossen, Phase 3: TS, Java, Go und Python prüfen die ganze Suite 5.0.0 und sind veröffentlicht)
+Stand: 2026-10-01. TS, Java, Go und Python bestehen die ganze Suite 5.0.0 und
+sind veröffentlicht. Es ist nichts offen.
 
-Dieses Dokument bündelt die offenen Vorhaben rund um das YaFT-Ökosystem:
-Go-Backend, Konformitäts-Suite und Sprach-Ports. Den ausführlichen Verlauf
-(Phasen 0–2, Befunde, Review-Protokolle) enthält der Git-Verlauf dieser Datei.
+Dieses Dokument ist das Nachschlagewerk für den Fall, dass ein weiterer Port
+dazukommt: der Stand des YaFT-Ökosystems, die feststehenden Entscheidungen
+und was ein Port mitbringen muss. Die frühere Roadmap (`TODO.md`, Phasen 0–3,
+Befunde, Review-Protokolle) steht im Git-Verlauf.
 
 **Nicht hier:** Der Betrieb von `yaft.tehwolf.de` (Compose-Stack, Traefik,
 Ratelimits, Cloudflare, OCI, OpenTofu) gehört zu `Docker/tehwolf.de` und wird
 dort geplant.
 
-## Hier weitermachen
-
-**Als Nächstes:** Nichts steht fest. Kandidaten sind weitere Ports nach Bedarf
-(siehe „Weitere Ports“).
+## Stand
 
 | Repo | Version | Stand |
 |---|---|---|
-| `Go/YaFT` | 0.3.15 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200`; `/collectionHash` nur für Gruppen |
+| `Go/YaFT` | 0.3.16 | Images publiziert, OpenAPI-Spec, deployt; leere Gruppe antwortet `200`; `/collectionHash` nur für Gruppen |
 | `yaft-conformance` | 5.0.0 | 34 Regeln, 119 Fälle; zuletzt R33 (Key und Value nur als String, keine Umwandlung), R30–R32 (Refresh ersetzt ganz oder scheitert, leere Gruppe `200`, Refresh meldet sein Ergebnis); Mapping-Format 4 mit `held`/`rejected`/`retry` |
 | `TypeScript/yaft` | 0.0.22 | auf npm, Suite 5.0.0 inkl. R32 (`refresh()`) |
 | `TypeScript/yaft-playground` | 0.1.1 | CI grün inkl. 8 E2E gegen echtes Backend; 8/8 auch gegen `yaft.tehwolf.de` |
