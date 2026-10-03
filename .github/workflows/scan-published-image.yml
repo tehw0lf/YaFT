@@ -13,6 +13,5 @@ jobs:
       contents: read
       packages: read
       security-events: write
-      pull-requests: write
     with:
       docker_meta: '[{"name": "yaft", "file": "Dockerfile"},{"name": "yaft-db", "file": "db/Dockerfile"}]'
