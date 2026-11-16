@@ -25,7 +25,7 @@ Copy and adapt `docker-compose.yml` or build your own setup.
 
 The fast suite runs against an in-memory SQLite database and needs nothing else:
 
-`docker run --rm -v $(pwd):/app -w /app golang:1.27.0 go test -race -cover ./...`
+`docker run --rm -v $(pwd):/app -w /app golang:1.27.3 go test -race -cover ./...`
 
 The integration suite runs against a real PostgreSQL with pg_cron, initialised
 from `db/init.sql`. It covers what SQLite structurally cannot: the
