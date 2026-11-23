@@ -25,7 +25,7 @@ Copy and adapt `docker-compose.yml` or build your own setup.
 
 The fast suite runs against an in-memory SQLite database and needs nothing else:
 
-`docker run --rm -v $(pwd):/app -w /app golang:1.27.3 go test -race -cover ./...`
+`docker run --rm -v $(pwd):/app -w /app golang:1.27.4 go test -race -cover ./...`
 
 The integration suite runs against a real PostgreSQL with pg_cron, initialised
 from `db/init.sql`. It covers what SQLite structurally cannot: the
@@ -122,7 +122,7 @@ missing timestamp.
 Images are published to `ghcr.io/tehw0lf/yaft` and `ghcr.io/tehw0lf/yaft-db`.
 
 The project version lives in the `VERSION` file. Go has no version field in its
-manifest -- `go 1.27.0` in `go.mod` is the language version -- so the release
+manifest -- `go 1.27.4` in `go.mod` is the language version -- so the release
 tooling reads `VERSION` instead, the same way prometheus and consul do it.
 
 Bump it in the PR that should be released:

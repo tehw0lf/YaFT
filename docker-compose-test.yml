@@ -52,7 +52,7 @@ services:
       retries: 30
 
   tests:
-    image: golang:1.27.0
+    image: golang:1.27.4
     working_dir: /app
     volumes:
       - .:/app
