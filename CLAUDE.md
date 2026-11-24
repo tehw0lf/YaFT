@@ -269,25 +269,16 @@ docker run --rm -v $(pwd):/app -w /app golang:1.27.4 go test -v -run ^$ -bench .
 ## CI/CD Integration
 
 ### GitHub Actions Workflow
-The project uses a reusable workflow from `tehw0lf/workflows` that automatically runs tests during the Docker build process. The Dockerfile includes a dedicated test stage:
+The build pipeline (`.github/workflows/build.yml`, reusable workflow from `tehw0lf/workflows`) builds and publishes the `yaft` image from the default target of `Dockerfile` and the `yaft-db` image from `db/Dockerfile`. It runs no Go tests, and the publish does not depend on `run-test-stage`.
 
-```dockerfile
-# Run the tests in the container
-FROM build-stage AS run-test-stage
-RUN go mod tidy && go vet ./... && go test -race -cover ./...
-```
+The Go tests in CI run in `.github/workflows/integration-tests.yml` via `scripts/integration-tests.sh`. That script runs every test file, including the SQLite suite, with `go test -tags=integration` and without `-race`, `-cover` or `go vet`.
 
-This ensures that during CI/CD:
-- Dependencies are properly tidied
-- Code passes static analysis (`go vet`)  
-- All tests pass with race detection and coverage reporting
-- Docker build fails if any tests fail
-- Only successful builds are published to the container registry
+The Dockerfile's `run-test-stage` (`go mod tidy && go vet ./... && go test -race -cover ./...`) is a local check only: run it with `docker build --target run-test-stage .`. CI does not build it.
 
 ### Pre-commit Validation Commands (Docker-based)
 
 ```bash
-# Full validation pipeline (matches CI/CD)
+# Full validation pipeline
 docker run --rm -v $(pwd):/app -w /app golang:1.27.4 bash -c "go mod tidy && go vet ./... && go test -race -cover ./... && go build -buildvcs=false"
 
 # Quick validation (for faster feedback)
