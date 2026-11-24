@@ -269,7 +269,7 @@ docker run --rm -v $(pwd):/app -w /app golang:1.27.4 go test -v -run ^$ -bench .
 ## CI/CD Integration
 
 ### GitHub Actions Workflow
-The build pipeline (`.github/workflows/build.yml`, reusable workflow from `tehw0lf/workflows`) builds and publishes the container images from the Dockerfile's default target. It runs no Go tests, and the publish does not depend on `run-test-stage`.
+The build pipeline (`.github/workflows/build.yml`, reusable workflow from `tehw0lf/workflows`) builds and publishes the `yaft` image from the default target of `Dockerfile` and the `yaft-db` image from `db/Dockerfile`. It runs no Go tests, and the publish does not depend on `run-test-stage`.
 
 The Go tests in CI run in `.github/workflows/integration-tests.yml` via `scripts/integration-tests.sh`. That script runs every test file, including the SQLite suite, with `go test -tags=integration` and without `-race`, `-cover` or `go vet`.
 
